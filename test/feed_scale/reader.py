@@ -4,7 +4,7 @@ import unittest
 from feed_scale.reader import FeedScaleRTUReader
 
 
-class MyTestCase(unittest.TestCase):
+class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         self.reader = FeedScaleRTUReader(length=40, duration=0.2, slave=2)
@@ -14,12 +14,12 @@ class MyTestCase(unittest.TestCase):
         self.reader = None
         pass
 
-    def test_read(self):
+    async def test_read(self):
 
-        asyncio.run(self.reader.connect(port="com2"))
-        df = asyncio.gather(*[self.reader.read()])
+        await self.reader.connect(port="com2")
+        df = await self.reader.read()
         print(df)
 
 
 if __name__ == '__main__':
-    asyncio.run(unittest.main())
+    unittest.main()
