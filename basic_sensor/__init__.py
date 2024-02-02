@@ -21,23 +21,11 @@ class DataExporter(abc.ABC):
 class CsvExporter(DataExporter, abc.ABC):
     ''' An abstract class to export data to csv.'''
 
-    def __init__(self, dir: str, file_name: str) -> None:
-
-        type_check(dir, "dir", str)
-        type_check(file_name, "file_name", str)
-
-        self.__DIR = dir
-        self.__FILE_NAME = file_name
+    def __init__(self) -> None:
         super().__init__()
-
-    def get_dir(self) -> str:
-        return self.__DIR
-    
-    def get_file_name(self) -> str:
-        return self.__FILE_NAME
     
     @abc.abstractmethod
-    def generate_path(self) -> None:
+    def __generate_path(self) -> str:
         return NotImplemented
     
 
@@ -95,10 +83,17 @@ class ModbusReader(Reader, abc.ABC):
     A Reader object is used to read data from a type of sensor.
     '''
 
-    def __init__(self, length: int, duration: int) -> None:
+    def __init__(self, length: int, duration: int, slave: int) -> None:
+        '''
+        * param length: length of a batch.
+        * param duration: the duration between two reading.
+        '''
 
         type_check(duration, "duration", int)
+        type_check(slave, "slave", int)
+
         self._DURATION = duration
+        self._SLAVE = slave
         super().__init__(length)
 
     @abc.abstractmethod
@@ -139,3 +134,41 @@ class Pipeline:
         for filter in self.__filters:
             data = await filter.process(data)
         return data
+    
+
+class Sensor(abc.ABC, DataGenerator):
+
+    def __init__(
+            self, 
+            reader: Reader, 
+            pipeline: Pipeline,
+            name: str,
+            waiting_time: int
+    ) -> None:
+        '''
+        * param reader: a Reader object to read data from the sensor.
+        * param pipeline: a Pipeline object to process read data.
+        * param name: the given name of this sensor for identification.
+        * param waiting_time: the waiting time between two reader.read() calls.
+        '''
+
+        type_check(reader, "reader", Reader)
+        type_check(pipeline, "pipeline", Pipeline)
+        type_check(name, "name", str)
+        type_check(waiting_time, "waiting_time", int)
+
+        self.__reader: Reader = reader
+        self.__pipeline: Pipeline = pipeline
+        self.NAME: str = name
+        self.WAITING_TIME: int = waiting_time
+        super().__init__()
+
+    @abc.abstractmethod
+    async def is_alive(self) -> bool:
+        return NotImplemented
+    
+    async def run(self) -> pd.DataFrame:
+        ''' Read and return processed data. '''
+
+        data = await self.__reader.read()
+        return await self.__pipeline.process(data)
