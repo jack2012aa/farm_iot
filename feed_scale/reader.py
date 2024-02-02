@@ -16,7 +16,7 @@ class FeedScaleRTUReader(ModbusReader):
     async def connect(
             self,
             port: str, 
-            baundrate: int = 384000, 
+            baundrate: int = 38400, 
             bytesize: int = 8, 
             parity: str = "N", 
             stopbits: int = 1, 
