@@ -17,7 +17,7 @@ class MyTestCase(unittest.TestCase):
     def test_read(self):
 
         asyncio.run(self.reader.connect(port="com2"))
-        df = asyncio.gather(*self.reader.read())
+        df = asyncio.gather(*[self.reader.read()])
         print(df)
 
 
