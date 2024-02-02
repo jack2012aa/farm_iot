@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import pandas as pd
@@ -9,8 +10,8 @@ from general import type_check
 
 class FeedScaleRTUReader(ModbusReader):
 
-    def __init__(self, length: int, duration: int) -> None:
-        super().__init__(length, duration)
+    def __init__(self, length: int, duration: float, slave: int) -> None:
+        super().__init__(length, duration, slave)
 
     async def connect(
             self,
@@ -53,4 +54,5 @@ class FeedScaleRTUReader(ModbusReader):
                 await self.__client.read_holding_registers(address=0, count=2, slave=self._SLAVE)
             )
             time_list.append(datetime.now())
+            await asyncio.sleep(self._DURATION)
         return pd.DataFrame({"datetime": time_list, "weight": weight_list})

@@ -83,13 +83,14 @@ class ModbusReader(Reader, abc.ABC):
     A Reader object is used to read data from a type of sensor.
     '''
 
-    def __init__(self, length: int, duration: int, slave: int) -> None:
+    def __init__(self, length: int, duration: float, slave: int) -> None:
         '''
         * param length: length of a batch.
         * param duration: the duration between two reading.
+        * param slave: port number in modbus.
         '''
 
-        type_check(duration, "duration", int)
+        type_check(duration, "duration", float)
         type_check(slave, "slave", int)
 
         self._DURATION = duration
