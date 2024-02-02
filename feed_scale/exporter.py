@@ -27,7 +27,7 @@ class FeedScaleWeeklyCsvExporter(CsvExporter):
         self.__DIR = dir
         super().__init__()
 
-    def __generate_path(self) -> str:
+    def _generate_path(self) -> str:
         ''' Generate path "{dir} + {year}_{week}_{file_name}.csv"'''
 
         now = datetime.now()
@@ -44,10 +44,10 @@ class FeedScaleWeeklyCsvExporter(CsvExporter):
         '''
 
         type_check(data, "data", DataFrame)
-        path = self.__generate_path()
+        path = self._generate_path()
         if not os.path.exists(path):
-            async with aiofiles.open(path, "w", encoding="utf-8") as file:
-                await file.write(data.to_csv(index=False, header=True))
+            async with aiofiles.open(path, "a", encoding="utf-8") as file:
+                await file.write(data.to_csv(index=False, header=True, lineterminator="\n"))
         else:
-            async with aiofiles.open(path, "w", encoding="utf-8") as file:
-                await file.write(data.to_csv(index=False, header=False))
+            async with aiofiles.open(path, "a", encoding="utf-8") as file:
+                await file.write(data.to_csv(index=False, header=False, lineterminator="\n"))

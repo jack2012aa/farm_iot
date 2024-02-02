@@ -25,7 +25,7 @@ class CsvExporter(DataExporter, abc.ABC):
         super().__init__()
     
     @abc.abstractmethod
-    def __generate_path(self) -> str:
+    def _generate_path(self) -> str:
         return NotImplemented
     
 
