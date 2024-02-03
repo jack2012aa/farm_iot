@@ -6,18 +6,18 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         self.reader = FeedScaleRTUReader(length=40, duration=0.2, slave=2)
-        pass
 
     def tearDown(self):
+        self.reader.close()
         self.reader = None
-        pass
 
     async def test_read(self):
 
-        if await self.reader.connect(port="COM2"):
-            print(await self.reader.read())
-        else:
-            raise ConnectionError("Fail to connect to gateway.")
+        self.assertTrue(self.reader.connect(port="COM2"))
+        df = await self.reader.read()
+        print(df)
+        self.assertEqual(df.size, 40 * 2)
+
 
 if __name__ == '__main__':
     unittest.main()

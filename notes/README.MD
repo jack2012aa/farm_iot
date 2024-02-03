@@ -1,4 +1,7 @@
 # Update Log
+## 2024-02-03
+* Degraded `pymodbus` to 3.5.2 so it can run successfully in Windows.
+* Tested reader.
 ## 2024-02-02
 * Wrote some feed_scale classes.
 * Tested exporter.

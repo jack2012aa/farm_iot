@@ -158,8 +158,8 @@ class Sensor(abc.ABC, DataGenerator):
         type_check(name, "name", str)
         type_check(waiting_time, "waiting_time", int)
 
-        self.__reader: Reader = reader
-        self.__pipeline: Pipeline = pipeline
+        self.READER: Reader = reader
+        self.PIPELINE: Pipeline = pipeline
         self.NAME: str = name
         self.WAITING_TIME: int = waiting_time
         super().__init__()
@@ -171,5 +171,5 @@ class Sensor(abc.ABC, DataGenerator):
     async def run(self) -> pd.DataFrame:
         ''' Read and return processed data. '''
 
-        data = await self.__reader.read()
-        return await self.__pipeline.process(data)
+        data = await self.READER.read()
+        return await self.PIPELINE.process(data)

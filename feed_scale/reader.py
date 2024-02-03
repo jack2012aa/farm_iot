@@ -64,3 +64,8 @@ class FeedScaleRTUReader(ModbusReader):
             time_list.append(datetime.now())
             await asyncio.sleep(self._DURATION)
         return pd.DataFrame({"datetime": time_list, "weight": weight_list})
+    
+    def close(self) -> None:
+        ''' Close connection. '''
+
+        self.__client.close()
