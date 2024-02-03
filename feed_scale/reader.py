@@ -7,6 +7,12 @@ from pymodbus.client.serial import AsyncModbusSerialClient
 from basic_sensor import ModbusReader
 from general import type_check
 
+def __calculate_weight_from_register(read: int):
+
+    type_check(read, "read", int)
+    if read > 45000:
+        return (read - 65536) / 100
+    return read / 100
 
 class FeedScaleRTUReader(ModbusReader):
 
@@ -50,9 +56,11 @@ class FeedScaleRTUReader(ModbusReader):
         time_list = []
         weight_list = []
         for _ in range(self._LENGTH_OF_A_BATCH):
-            weight_list.append(
-                await self.__client.read_holding_registers(address=0, count=2, slave=self._SLAVE)
-            )
+            # Get register data
+            # The program provided by Mr.Tsai read 2 coils, but I guess reading 1 is enough
+            data = await self.__client.read_holding_registers(address=0, count=1, slave=self._SLAVE).registers[0]
+            # Compute weight and append
+            weight_list.append(__calculate_weight_from_register(data))
             time_list.append(datetime.now())
             await asyncio.sleep(self._DURATION)
         return pd.DataFrame({"datetime": time_list, "weight": weight_list})

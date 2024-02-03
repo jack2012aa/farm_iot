@@ -14,10 +14,11 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_read(self):
 
-        print(await self.reader.connect(port="COM2"))
-        df = await self.reader.read()
-        print(df)
-
+        if await self.reader.connect(port="COM2"):
+            print(await self.reader.read())
+        else:
+            raise ConnectionError("Fail to connect to gateway.")
 
 if __name__ == '__main__':
     unittest.main()
+    
