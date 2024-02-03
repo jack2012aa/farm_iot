@@ -14,7 +14,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_read(self):
 
-        await self.reader.connect(port="COM2")
+        print(await self.reader.connect(port="COM2"))
         df = await self.reader.read()
         print(df)
 
