@@ -1,5 +1,6 @@
 from pandas.core.api import DataFrame as DataFrame
-from basic_sensor import Pipeline, Reader, Sensor
+
+from basic_sensor import Pipeline, Reader, Sensor, ModbusReader
 
 
 class FeedScale(Sensor):
@@ -12,7 +13,15 @@ class FeedScale(Sensor):
         return self.__alive
     
     async def run(self) -> DataFrame:
-        data = await super().run()
+        
+        if isinstance(self.READER, ModbusReader):
+            connected = await self.READER.connect()
+            if not connected:
+                raise ConnectionError("Fail to connect to modbus.") # Add more detail
+            data = await super().run()
+            self.READER.close()
+        else:
+            data = await super().run()
         if data.size > 0:
             self.__alive = True
         else:

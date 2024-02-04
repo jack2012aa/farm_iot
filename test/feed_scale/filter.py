@@ -12,12 +12,12 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.filter = None
         data = {
             "datetime": [0, 10, 20, 30, 40, 50, 60], 
-            "weight": [100, 120, 110, 100, 115, 100, 114]
+            "weight": [100, 120, 110, 100, 115, 100, 200]
         }
         self.data = DataFrame(data=data)
         self.data["weight"] = self.data["weight"].astype(float)
-        self.average = 108.43
-        self.standard_deviation = 8.40
+        self.average = 120.71
+        self.standard_deviation = 35.87
 
     def tearDown(self):
         pass

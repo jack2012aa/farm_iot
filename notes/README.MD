@@ -1,7 +1,10 @@
 # Update Log
+## 2024-02-04
+* Implemented sensor and tested.
 ## 2024-02-03
 * Degraded `pymodbus` to 3.5.2 so it can run successfully in Windows.
 * Tested reader.
+* Implemented filters and tested.
 ## 2024-02-02
 * Wrote some feed_scale classes.
 * Tested exporter.

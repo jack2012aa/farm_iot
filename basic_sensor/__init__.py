@@ -101,6 +101,10 @@ class ModbusReader(Reader, abc.ABC):
     async def connect(self) -> None:
         return NotImplemented
     
+    @abc.abstractmethod
+    def close(self) -> None:
+        return NotImplemented
+    
 
 class Filter(DataGenerator, abc.ABC):
     '''
