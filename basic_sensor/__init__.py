@@ -128,12 +128,13 @@ class Pipeline:
         type_check(filter, "filter", Filter)
         self.__filters.append(filter)
 
-    async def process(self, data: pd.DataFrame) -> pd.DataFrame:
-        ''' Call every filter in the filter list. '''
+    async def run(self, data: pd.DataFrame) -> pd.DataFrame:
+        ''' Call every filter in the filter list and notify exporters. '''
 
         type_check(data, "data", pd.DataFrame)
         for filter in self.__filters:
             data = await filter.process(data)
+            await filter.notify_exporters(data)
         return data
     
 
@@ -172,4 +173,5 @@ class Sensor(abc.ABC, DataGenerator):
         ''' Read and return processed data. '''
 
         data = await self.READER.read()
-        return await self.PIPELINE.process(data)
+        await self.READER.notify_exporters(data)
+        return await self.PIPELINE.run(data)

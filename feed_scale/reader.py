@@ -14,38 +14,49 @@ def calculate_weight_from_register(read: int):
         return (read - 65536) / 100
     return read / 100
 
+
 class FeedScaleRTUReader(ModbusReader):
 
-    def __init__(self, length: int, duration: float, slave: int) -> None:
-        super().__init__(length, duration, slave)
-
-    async def connect(
-            self,
+    def __init__(
+            self, 
+            length: int, 
+            duration: float, 
+            slave: int, 
             port: str, 
             baundrate: int = 38400, 
             bytesize: int = 8, 
             parity: str = "N", 
             stopbits: int = 1, 
             time_out: int = 5
-    ) -> bool:
-        ''' Connect to the serial gateway.'''
-
+    ) -> None:
+        
+        super().__init__(length, duration, slave)
         type_check(port, "port", str)
         type_check(baundrate, "baundrate", int)
         type_check(bytesize, "bytesize", int)
         type_check(parity, "parity", str)
         type_check(stopbits, "stopbits", int)
         type_check(time_out, "time_out", int)
+        self.PORT = port
+        self.BAUNDRATE = baundrate
+        self.BYTESIZE = bytesize
+        self.PARITY = parity
+        self.STOPBITS = stopbits
+        self.TIME_OUT = time_out
+        self.__master = None
 
-        self.__client = AsyncModbusSerialClient(
-            port=port, 
-            baudrate=baundrate, 
-            bytesize=bytesize, 
-            parity=parity, 
-            stopbits=stopbits, 
-            time_out=time_out
+    async def connect(self) -> bool:
+        ''' Connect to the serial gateway.'''
+
+        self.__master = AsyncModbusSerialClient(
+            port=self.PORT, 
+            baudrate=self.BAUNDRATE, 
+            bytesize=self.BYTESIZE, 
+            parity=self.PARITY, 
+            stopbits=self.STOPBITS, 
+            time_out=self.TIME_OUT
         )
-        return await self.__client.connect()
+        return await self.__master.connect()
 
     async def read(self) -> pd.DataFrame:
         '''
@@ -58,7 +69,7 @@ class FeedScaleRTUReader(ModbusReader):
         for _ in range(self._LENGTH_OF_A_BATCH):
             # Get register data
             # The program provided by Mr.Tsai read 2 coils, but I guess reading 1 is enough
-            data = await self.__client.read_holding_registers(address=0, count=1, slave=self._SLAVE)
+            data = await self.__master.read_holding_registers(address=0, count=1, slave=self._SLAVE)
             # Compute weight and append
             weight_list.append(calculate_weight_from_register(data.registers[0]))
             time_list.append(datetime.now())
@@ -68,4 +79,4 @@ class FeedScaleRTUReader(ModbusReader):
     def close(self) -> None:
         ''' Close connection. '''
 
-        self.__client.close()
+        self.__master.close()
