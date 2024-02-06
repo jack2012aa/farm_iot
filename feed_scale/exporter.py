@@ -1,6 +1,6 @@
 import aiofiles
-import os
 from datetime import datetime
+import os
 
 from pandas import DataFrame
 
@@ -13,6 +13,7 @@ class FeedScaleWeeklyCsvExporter(CsvExporter):
 
     def __init__(self, file_name: str, dir: str = os.getcwd()) -> None:
         '''
+        Save weight records into a csv. It will generate a new csv every week.
         * param file_name: the final file name will be "{year}_{week}_{file_name}.csv"
         * param dir: storage directory.
         '''
@@ -27,6 +28,9 @@ class FeedScaleWeeklyCsvExporter(CsvExporter):
         self.__DIR = dir
         super().__init__()
 
+    def __str__(self) -> str:
+        return f"CsvExporter. Dir: '{self.__DIR}' File name: 'year_week_{self.__FILE_NAME}'"
+
     def _generate_path(self) -> str:
         ''' Generate path "{dir} + {year}_{week}_{file_name}.csv"'''
 
@@ -39,7 +43,7 @@ class FeedScaleWeeklyCsvExporter(CsvExporter):
     
     async def export(self, data: DataFrame) -> None:
         '''
-        Export data to csv.
+        Export data to csv.\ 
         Initialize the csv if it has not been created.
         '''
 

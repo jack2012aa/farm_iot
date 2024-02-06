@@ -57,6 +57,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(40, data.iloc[30, 1])
         os.remove(std_exporter._generate_path())
         os.remove(raw_exporter._generate_path())
+        print(self.sensor)
 
 
 if __name__ == '__main__':

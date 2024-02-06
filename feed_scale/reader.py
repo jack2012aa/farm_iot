@@ -16,6 +16,7 @@ def calculate_weight_from_register(read: int):
 
 
 class FeedScaleRTUReader(ModbusReader):
+    ''' Read data from a RTU slave through a serial port. '''
 
     def __init__(
             self, 
@@ -29,6 +30,18 @@ class FeedScaleRTUReader(ModbusReader):
             stopbits: int = 1, 
             time_out: int = 5
     ) -> None:
+        ''' 
+        Read data from a RTU slave through a serial port. 
+        * param length: number of records read in a call of `read()`.
+        * param duration: the duration between two reading in each call of `read().
+        * param slave: port number in modbus.
+        * param port: serial port number. Should look like 'COM2', 'COM3'. Please refer to (COM and LPT) section in the Device Manager in Windows.
+        * param baundrate: the baundrate of the modbus device. Please refer to the device document provided by productors. 
+        * param bytesize: modbus setting. Please refer to the device document provided by productors.
+        * param parity: modbus setting. Please refer to the device document provided by productors.
+        * param stopbits: modbus setting. Please refer to the device document provided by productors.
+        * param time_out: modbus setting. Please refer to the device document provided by productors.
+        '''
         
         super().__init__(length, duration, slave)
         type_check(port, "port", str)
@@ -45,6 +58,20 @@ class FeedScaleRTUReader(ModbusReader):
         self.TIME_OUT = time_out
         self.__master = None
 
+    def __str__(self) -> str:
+        
+        descriptions = [
+            "RTUReader. ", 
+            f"Port: {self.PORT}", 
+            f"Baundrate: {self.BAUNDRATE}", 
+            f"Bytesize: {self.BYTESIZE}", 
+            f"Parity: {self.PARITY}", 
+            f"Stopbits: {self.STOPBITS}", 
+            f"Time out: {self.TIME_OUT}", 
+            f"Slave: {self._SLAVE}"
+        ]
+        return "\n".join(descriptions)
+
     async def __connect(self) -> bool:
         ''' Connect to the serial gateway.'''
 
@@ -57,10 +84,15 @@ class FeedScaleRTUReader(ModbusReader):
             time_out=self.TIME_OUT
         )
         return await self.__master.connect()
+    
+    def __close(self) -> None:
+        ''' Close connection. '''
+
+        self.__master.close()
 
     async def read(self) -> pd.DataFrame:
         '''
-        Read and return a batch of data. 
+        Read and return a batch of data. \
         Data attributes: datetime, weight
         '''
 
@@ -78,8 +110,3 @@ class FeedScaleRTUReader(ModbusReader):
             await asyncio.sleep(self._DURATION)
         self.__close()
         return pd.DataFrame({"datetime": time_list, "weight": weight_list})
-    
-    def __close(self) -> None:
-        ''' Close connection. '''
-
-        self.__master.close()

@@ -8,7 +8,11 @@ class StdFilter(Filter):
     ''' Compute the standard deviation of data and replace out-of-range data to average +- one std.'''
 
     def __init__(self) -> None:
+        ''' Compute the standard deviation of data and replace out-of-range data to average +- one std.'''
         super().__init__()
+
+    def __str__(self) -> str:
+        return "StdFilter. Range: [-avg + std, +avg + std]"
 
     async def process(self, data: DataFrame) -> DataFrame:
         ''' Compute the standard deviation of data and replace out-of-range data to average +- one std.'''
@@ -28,7 +32,11 @@ class BatchAverageFilter(Filter):
     ''' Compute and return the average of weights. `datetime` will be set as last timestamp in original data. '''
 
     def __init__(self) -> None:
+        ''' Compute and return the average of weights. `datetime` will be set as last timestamp in original data. '''
         super().__init__()
+
+    def __str__(self) -> str:
+        return "BatchAverageFilter. "
 
     async def process(self, data: DataFrame) -> DataFrame:
         ''' Compute and return the average of weights. `Datetime` will be set as last timestamp in original data. '''
