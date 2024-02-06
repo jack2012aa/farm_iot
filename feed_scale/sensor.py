@@ -14,14 +14,7 @@ class FeedScale(Sensor):
     
     async def run(self) -> DataFrame:
         
-        if isinstance(self.READER, ModbusReader):
-            connected = await self.READER.connect()
-            if not connected:
-                raise ConnectionError("Fail to connect to modbus.") # Add more detail
-            data = await super().run()
-            self.READER.close()
-        else:
-            data = await super().run()
+        data = await super().run()
         if data.size > 0:
             self.__alive = True
         else:

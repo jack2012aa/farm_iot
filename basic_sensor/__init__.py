@@ -96,14 +96,6 @@ class ModbusReader(Reader, abc.ABC):
         self._DURATION = duration
         self._SLAVE = slave
         super().__init__(length)
-
-    @abc.abstractmethod
-    async def connect(self) -> None:
-        return NotImplemented
-    
-    @abc.abstractmethod
-    def close(self) -> None:
-        return NotImplemented
     
 
 class Filter(DataGenerator, abc.ABC):

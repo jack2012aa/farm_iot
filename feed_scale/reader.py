@@ -45,7 +45,7 @@ class FeedScaleRTUReader(ModbusReader):
         self.TIME_OUT = time_out
         self.__master = None
 
-    async def connect(self) -> bool:
+    async def __connect(self) -> bool:
         ''' Connect to the serial gateway.'''
 
         self.__master = AsyncModbusSerialClient(
@@ -64,19 +64,22 @@ class FeedScaleRTUReader(ModbusReader):
         Data attributes: datetime, weight
         '''
 
+        if not await self.__connect():
+            raise ConnectionError("Can not connect to RTU slave")
+
         time_list = []
         weight_list = []
         for _ in range(self._LENGTH_OF_A_BATCH):
             # Get register data
-            # The program provided by Mr.Tsai read 2 coils, but I guess reading 1 is enough
             data = await self.__master.read_holding_registers(address=0, count=1, slave=self._SLAVE)
             # Compute weight and append
             weight_list.append(calculate_weight_from_register(data.registers[0]))
             time_list.append(datetime.now())
             await asyncio.sleep(self._DURATION)
+        self.__close()
         return pd.DataFrame({"datetime": time_list, "weight": weight_list})
     
-    def close(self) -> None:
+    def __close(self) -> None:
         ''' Close connection. '''
 
         self.__master.close()

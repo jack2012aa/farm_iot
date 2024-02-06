@@ -10,12 +10,10 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.reader = FeedScaleRTUReader(length=40, duration=0.2, slave=1, port="COM3")
 
     def tearDown(self):
-        self.reader.close()
         self.reader = None
 
     async def test_read(self):
 
-        self.assertTrue(await self.reader.connect())
         df = await self.reader.read()
         print(df)
         self.assertEqual(df.size, 40 * 2)
