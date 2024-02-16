@@ -40,7 +40,8 @@ class FeedScaleRTUReader(ModbusReader):
         '''
         Read and return a batch of data. \
         Data attributes: datetime, weight
-        把group問題移到SensorManager?
+        把group問題移到SensorManager，讓pipeline可以訂閱reader，在read()完後呼叫各個pipeline
+        read()在實作各種sensor時再實現吧
         '''
 
         time_list = []
