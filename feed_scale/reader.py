@@ -108,5 +108,6 @@ class FeedScaleRTUReader(ModbusReader):
             weight_list.append(calculate_weight_from_register(data.registers[0]))
             time_list.append(datetime.now())
             await asyncio.sleep(self._DURATION)
+
         self.__close()
         return pd.DataFrame({"datetime": time_list, "weight": weight_list})
