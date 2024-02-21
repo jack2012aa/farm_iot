@@ -7,20 +7,8 @@ from datetime import datetime
 import pandas as pd
 
 from general import type_check
-from base.manage import Worker, Report
-
-
-class DataExporter(Worker, abc.ABC):
-    """ An abstract class to export data to different output, such as csv and database."""
-
-    def __init__(self) -> None:
-        """ An abstract class to export data to different output, such as csv and database."""
-        super().__init__()
-
-    @abc.abstractmethod
-    async def export(self, data: pd.DataFrame) -> None:
-        """ Export data to specific output."""
-        return NotImplemented
+from base.manage import Report
+from base.export import DataExporter
 
 
 class CsvExporter(DataExporter, abc.ABC):

@@ -1,4 +1,7 @@
 # Update Log
+## 2024-02-21
+* Restructure `export` interface and tested.
+* Add `manage` interface and tested.
 ## 2024-02-04
 * Implemented sensor and tested.
 ## 2024-02-03

@@ -9,7 +9,7 @@ from base.pipeline import Pipeline
 from base.pipeline.common_filters import StdFilter
 from feed_scale.reader import FeedScaleRTUReader
 from base.pipeline.common_filters import BatchAverageFilter
-from base.export.data_exporter import WeeklyCsvExporter
+from base.export.common_exporters import WeeklyCsvExporter
 from feed_scale.sensor import FeedScale
 
 

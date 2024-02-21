@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from base.export.data_exporter import WeeklyCsvExporter
+from base.export.common_exporters import WeeklyCsvExporter
 
 
 class MyTestCase(unittest.TestCase):

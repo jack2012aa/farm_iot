@@ -1,10 +1,23 @@
 import asyncio
+from abc import ABC, abstractmethod
 
 from pandas import DataFrame
 
-from base.export.data_exporter import DataExporter
-from base.manage import Worker
+from base.manage import Worker, Report
 from general import type_check
+
+
+class DataExporter(Worker, ABC):
+    """ An abstract class to export data to different output, such as csv and database."""
+
+    def __init__(self) -> None:
+        """ An abstract class to export data to different output, such as csv and database."""
+        super().__init__()
+
+    @abstractmethod
+    async def export(self, data: DataFrame) -> None:
+        """ Export data to specific output."""
+        return NotImplemented
 
 
 class DataGenerator(Worker):
@@ -55,7 +68,7 @@ class DataGenerator(Worker):
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
             if isinstance(result, BaseException):
-                self.notify_manager(sign=self, content=result)
+                self.notify_manager(Report(sign=self, content=result))
 
     def list_exporters(self) -> list[str]:
         """ Return the description of exporters in the exporter list."""
