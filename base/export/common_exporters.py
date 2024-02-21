@@ -1,3 +1,5 @@
+"""Define some common exporters"""
+
 import os
 import abc
 import aiofiles
@@ -20,15 +22,15 @@ class CsvExporter(DataExporter, abc.ABC):
 
     @abc.abstractmethod
     def _generate_path(self) -> str:
-        """
-        Generate the path to export data. \ 
+        """Generate the path to export data.
+
         Each sensor has its storage requirements. This method should be implemented based on those requirements.
         """
         return NotImplemented
     
     async def export(self, data: pd.DataFrame) -> None:
-        """
-        Export data to csv.\ 
+        """Export data to csv.
+        
         Initialize the csv if it has not been created.
         """
 
@@ -52,16 +54,17 @@ class CsvExporter(DataExporter, abc.ABC):
 
 
 class DatabaseExporter(DataExporter, abc.ABC):
-    """ An abstract class to export data to a database. """
+    """An abstract class to export data to a database. """
 
     def __init__(self) -> None:
-        """ An abstract class to export data to a database. """
+        """An abstract class to export data to a database. """
         super().__init__()
 
     @abc.abstractmethod
     async def connect(self, config: dict) -> None:
         """
-        Connect to the database. \ 
+        Connect to the database.
+
         Should be implemented based on different database systems and tables.
         """
         return NotImplemented
@@ -71,10 +74,10 @@ class WeeklyCsvExporter(CsvExporter):
     """ Save data into a csv. It will generate a new csv every week."""
 
     def __init__(self, file_name: str, dir: str = os.getcwd()) -> None:
-        """
-        Save data into a csv. It will generate a new csv every week.
-        * param file_name: the final file name will be "{year}_{week}_{file_name}.csv"
-        * param dir: storage directory.
+        """Save data into a csv. It will generate a new csv every week.
+        
+        :param file_name: the final file name will be "{year}_{week}_{file_name}.csv"
+        :param dir: storage directory.
         """
 
         type_check(dir, "dir", str)
@@ -91,7 +94,7 @@ class WeeklyCsvExporter(CsvExporter):
         return f"CsvExporter. Dir: '{self.__DIR}' File name: 'year_week_{self.__FILE_NAME}'"
 
     def _generate_path(self) -> str:
-        """ Generate path '{dir} + {year}_{week}_{file_name}.csv'"""
+        """Generate path '{dir} + {year}_{week}_{file_name}.csv'"""
 
         now = datetime.now()
 

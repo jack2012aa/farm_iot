@@ -1,5 +1,6 @@
 # Update Log
 ## 2024-02-21
+* Tested common exporters.
 * Restructure `export` interface and tested.
 * Add `manage` interface and tested.
 ## 2024-02-04
