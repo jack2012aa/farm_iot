@@ -2,8 +2,9 @@ import unittest
 
 from pandas import DataFrame
 import pandas as pd
+from base.pipeline.common_filters import StdFilter
 
-from feed_scale.filter import StdFilter, BatchAverageFilter
+from base.pipeline.common_filters import BatchAverageFilter
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):

@@ -1,12 +1,14 @@
 from pandas.core.api import DataFrame as DataFrame
 
-from basic_sensor import Pipeline, Reader, Sensor
+from base import Sensor
+from base.pipeline import Pipeline
+from base.sensor import Sensor
 
 
 class FeedScale(Sensor):
-    ''' A basic `Sensor` class to represent a feed scale device.'''
+    """ A basic `Sensor` class to represent a feed scale device."""
 
-    def __init__(self, reader: Reader, pipeline: Pipeline, name: str, waiting_time: int = 0) -> None:
+    def __init__(self, reader: Sensor, pipeline: Pipeline, name: str, waiting_time: int = 0) -> None:
         super().__init__(reader, pipeline, name, waiting_time)
         self.__alive: bool = False
 

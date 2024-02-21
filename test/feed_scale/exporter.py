@@ -5,13 +5,13 @@ from datetime import datetime
 
 import pandas as pd
 
-from feed_scale.exporter import FeedScaleWeeklyCsvExporter
+from base.export.data_exporter import WeeklyCsvExporter
 
 
 class MyTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.exporter = FeedScaleWeeklyCsvExporter(file_name="test")
+        self.exporter = WeeklyCsvExporter(file_name="test")
 
     def tearDown(self):
         os.remove(self.exporter._generate_path())

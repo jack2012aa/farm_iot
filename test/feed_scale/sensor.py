@@ -1,14 +1,15 @@
-''' This test is done in Windows 11, with the help of com0com0 and ICDT Modbus RTU slave.'''
+""" This test is done in Windows 11, with the help of com0com0 and ICDT Modbus RTU slave."""
 
 import unittest
 import os
 
 import pandas as pd
 
-from basic_sensor import Pipeline
+from base.pipeline import Pipeline
+from base.pipeline.common_filters import StdFilter
 from feed_scale.reader import FeedScaleRTUReader
-from feed_scale.filter import StdFilter, BatchAverageFilter
-from feed_scale.exporter import FeedScaleWeeklyCsvExporter
+from base.pipeline.common_filters import BatchAverageFilter
+from base.export.data_exporter import WeeklyCsvExporter
 from feed_scale.sensor import FeedScale
 
 
@@ -45,12 +46,12 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_sensor(self):
 
         std_filter = StdFilter()
-        std_exporter = FeedScaleWeeklyCsvExporter("std")
+        std_exporter = WeeklyCsvExporter("std")
         std_filter.add_exporter(std_exporter)
         pipeline = Pipeline()
         pipeline.add_filter(std_filter)
         reader = FeedScaleRTUReader(length=40, duration=0.2, slave=1, port="COM3")
-        raw_exporter = FeedScaleWeeklyCsvExporter("raw")
+        raw_exporter = WeeklyCsvExporter("raw")
         reader.add_exporter(raw_exporter)
         self.sensor = FeedScale(reader=reader, pipeline=pipeline, name="test")
         data = await self.sensor.run()

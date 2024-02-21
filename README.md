@@ -7,4 +7,5 @@ This project is tested in Windows 11. \
 com0com and ICDT Modbus RTU Slave are use to mimic RTU.
 
 # Usage
-Define a `Sensor` by implementing its `Reader`, `Filter` and `Pipeline`. Use the `Client` to manage list of sensors.
+Define a `Sensor` by implementing a child of `Reader`. Register `Pipeline` to `Sensor` and `DataExporter` to `DataGenerator`. \ 
+Use `Manager` to manage sensors and gateways.

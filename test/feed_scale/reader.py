@@ -1,4 +1,4 @@
-''' This test is done in Windows 11, with the help of com0com0 and ICDT Modbus RTU slave.'''
+""" This test is done in Windows 11, with the help of com0com0 and ICDT Modbus RTU slave."""
 
 import unittest
 from feed_scale.reader import FeedScaleRTUReader
@@ -14,7 +14,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_read(self):
 
-        df = await self.reader.read()
+        df = await self.reader.read_and_process()
         print(df)
         self.assertEqual(df.size, 40 * 2)
 

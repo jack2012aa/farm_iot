@@ -4,7 +4,7 @@ from datetime import datetime
 import pandas as pd
 from pymodbus.client.serial import AsyncModbusSerialClient
 
-from basic_sensor import ModbusReader
+from base.sensor.modbus import ModbusBasedSensor
 from general import type_check
 
 def calculate_weight_from_register(read: int):
@@ -15,8 +15,8 @@ def calculate_weight_from_register(read: int):
     return read / 100
 
 
-class FeedScaleRTUReader(ModbusReader):
-    ''' Read data from a RTU slave through a serial port. '''
+class FeedScaleRTUReader(ModbusBasedSensor):
+    """ Read data from a RTU slave through a serial port. """
 
     def __init__(
             self, 
@@ -25,24 +25,22 @@ class FeedScaleRTUReader(ModbusReader):
             client: AsyncModbusSerialClient, 
             slave: int, 
     ) -> None:
-        ''' 
+        """ 
         Read data from a RTU slave through a serial port. 
         * param length: number of records read in a call of `read()`.
         * param duration: the duration between two reading in each call of `read().
         * param client: a connection to a modbus rtu gateway. Please receive through `GatewayManager`.
         * param slave: port number in modbus.
-        '''
+        """
         
         type_check(client, "client", AsyncModbusSerialClient)
         super().__init__(length, duration, client, slave)
 
-    async def read(self) -> pd.DataFrame:
-        '''
+    async def read_and_process(self) -> pd.DataFrame:
+        """
         Read and return a batch of data. \
         Data attributes: datetime, weight
-        把group問題移到SensorManager，讓pipeline可以訂閱reader，在read()完後呼叫各個pipeline
-        read()在實作各種sensor時再實現吧
-        '''
+        """
 
         time_list = []
         weight_list = []
