@@ -18,6 +18,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
             os.remove(self.exporter._generate_path())
         except:
             pass
+        self.exporter = None
 
     async def test_weekly_csv_exporter(self):
 
