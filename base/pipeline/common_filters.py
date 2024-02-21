@@ -35,18 +35,26 @@ class StdFilter(Filter):
 
 
 class BatchAverageFilter(Filter):
-    """ Compute and return the average of weights. `datetime` will be set as last timestamp in original data. """
+    """Compute and return the average of a batch. `Datetime` will be set 
+    as the last timestamp in original data. """
 
     def __init__(self) -> None:
-        """ Compute and return the average of weights. `datetime` will be set as last timestamp in original data. """
+        """Compute and return the average of a batch. `Datetime` will be 
+        set as the last timestamp in original data. """
         super().__init__()
 
     def __str__(self) -> str:
-        return "BatchAverageFilter. "
+        return "BatchAverageFilter."
 
     async def process(self, data: DataFrame) -> DataFrame:
-        """ Compute and return the average of weights. `Datetime` will be set as last timestamp in original data. """
+        """Compute and return the average of a batch. `Datetime` will be set 
+        as the last timestamp in original data. """
 
         type_check(data, "data", DataFrame)
-        average = data.mean().get("weight")
-        return DataFrame(data={"datetime":[data.iloc[data.shape[0] - 1, 0]], "weight": [average]})
+        average = data.mean()
+        average.iloc[0] = data.iloc[data.shape[0] - 1, 0]
+        df = average.to_frame().T
+        # Change dtype back.
+        df[df.columns[0]] = df[df.columns[0]].astype(data[data.columns[0]].dtype)
+        
+        return df

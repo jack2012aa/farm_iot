@@ -1,5 +1,6 @@
 # Update Log
 ## 2024-02-21
+* Restructure `filter` to universal version and tested.
 * Restructure `gateway` and tested.
 * Tested common exporters.
 * Restructure `export` interface and tested.
