@@ -1,38 +1,47 @@
-from pandas.core.api import DataFrame as DataFrame
+from abc import ABC
 
-from base import Sensor
-from base.pipeline import Pipeline
-from base.sensor import Sensor
+from pymodbus.client.serial import AsyncModbusSerialClient
+
+from base.sensor.modbus import ModbusRTUBasedSensor
+from general import type_check
+
+def calculate_weight_from_register(read: int):
+
+    type_check(read, "read", int)
+    if read > 45000:
+        return (read - 65536) / 100
+    return read / 100
 
 
-class FeedScale(Sensor):
-    """ A basic `Sensor` class to represent a feed scale device."""
+class FeedScale(ABC):
+    """An abstract class for feed scale."""
 
-    def __init__(self, reader: Sensor, pipeline: Pipeline, name: str, waiting_time: int = 0) -> None:
-        super().__init__(reader, pipeline, name, waiting_time)
-        self.__alive: bool = False
 
-    def __str__(self) -> str:
-        descriptions = [
-            "FeedScale", 
-            "----------------------------------------------------------", 
-            f"Name: {self.NAME}",
-            f"waiting time: {str(self.WAITING_TIME)}",
-            "----------------------------------------------------------", 
-            f"Reader: {str(self.READER)}", 
-            "----------------------------------------------------------", 
-            f"Pipeline: {str(self.PIPELINE)}"
-        ]
-        return "\n".join(descriptions)
+class FeedScaleRTUSensor(ModbusRTUBasedSensor, FeedScale):
+    """ Read data from a RTU slave through a serial port. """
 
-    async def is_alive(self) -> bool:
-        return self.__alive
-    
-    async def run(self) -> DataFrame:
+    def __init__(
+            self,
+            name: str, 
+            client: AsyncModbusSerialClient,
+            slave: int,
+    ) -> None:
+        """Read scale data from a RTU slave. 
+
+        :param length: number of data read in one call of `read()`.
+        :param duration: the duration between two `read_register()` in `read()`.
+        :param waiting_time: the waiting time between two `read()`.
+        :param client: a connection to modbus gateway. Please use `GatewayManager` to receive the connection.
+        :param slave: port number in modbus.
+        """
         
-        data = await super().run()
-        if data.size > 0:
-            self.__alive = True
-        else:
-            self.__alive = False
-        return data
+        type_check(client, "client", AsyncModbusSerialClient)
+        super().__init__(40, 0.1, name, 19.0, client, slave)
+        self.initialize_registers()
+        self.initialize_data()
+
+    def initialize_registers(self) -> None:
+        reg = FeedScaleRTUSensor.ModbusRegister(
+            address=0, transform=calculate_weight_from_register, field_name="Weight", function_code=3
+        )
+        self._registers.append(reg)

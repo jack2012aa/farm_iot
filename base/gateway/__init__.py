@@ -52,13 +52,13 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
         Please DO NOT close the connection through the returned object.
         """
         type_check(port, "port", str)
-        port = port.capitalize()
+        port = port.upper()
         return ModbusRTUGatewayConnectionsManager.__connections.get(port)
 
     def get_lock(self, port: str) -> asyncio.Lock | None:
         """Return a async lock to manage port access."""
         type_check(port, "port", str)
-        port = port.capitalize()
+        port = port.upper()
         return ModbusRTUGatewayConnectionsManager.__locks.get(port)
 
     async def create_connection(self, settings: RTUConnectionSettings) -> None:
@@ -70,7 +70,7 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
         Please use `get_connection` to receive the created object.
         """
 
-        port = settings.PORT.capitalize()
+        port = settings.PORT.upper()
         if ModbusRTUGatewayConnectionsManager.__connections.get(
             port
         ) is None:

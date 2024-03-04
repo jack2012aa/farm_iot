@@ -1,6 +1,7 @@
 # Update Log
 ## 2024-03-04
 * Modify modbus sensor due to unsopported thread safe.
+* Wrote feed scale rtu sensor and tested.
 ## 2024-02-21
 * Restructure `filter` to universal version and tested.
 * Restructure `gateway` and tested.

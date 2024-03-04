@@ -8,7 +8,7 @@ from base.gateway import ModbusRTUGatewayConnectionsManager, RTUConnectionSettin
 from base.manage import Manager, Report
 
 
-class TestModbusSensor(ModbusBasedSensor):
+class TestModbusSensor(ModbusRTUBasedSensor):
 
     def __init__(self, length: int, duration: float, waiting_time: float, client: ModbusBaseClient, slave: int) -> None:
         super().__init__(length, duration, "test", waiting_time, client, slave)
@@ -24,9 +24,6 @@ class TestModbusSensor(ModbusBasedSensor):
             address=2, transform=lambda x: x * 2, field_name="humidity", function_code=4
         )
         self._registers.append(reg)
-
-    async def is_alive(self) -> bool:
-        return True
     
 
 class TestManager(Manager):
@@ -85,6 +82,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         sensor3.set_manager(TestManager())
         empty_result = await sensor3.read_and_process()
         self.assertIsNone(empty_result)
+        self.assertFalse(await sensor3.is_alive())
 
 
 if __name__ == '__main__':

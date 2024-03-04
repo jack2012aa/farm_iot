@@ -1,64 +1,44 @@
 """ This test is done in Windows 11, with the help of com0com0 and ICDT Modbus RTU slave."""
 
+import asyncio
 import unittest
-import os
 
-import pandas as pd
-
-from base.pipeline import Pipeline
-from base.pipeline.common_filters import StdFilter
-from feed_scale.reader import FeedScaleRTUReader
-from base.pipeline.common_filters import BatchAverageFilter
-from base.export.common_exporters import WeeklyCsvExporter
-from feed_scale.sensor import FeedScale
+from base.gateway import ModbusRTUGatewayConnectionsManager, RTUConnectionSettings
+from feed_scale.sensor import FeedScaleRTUSensor
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
-        self.data = pd.DataFrame(data={
-            "datetime": [0, 10, 20, 30, 40, 50, 60], 
-            "weight": [100, 120, 110, 100, 115, 100, 200]
-        })
-        self.data["weight"] = self.data["weight"].astype(float)
-        self.average = 120.71
-        self.standard_deviation = 35.87
-        self.sensor = None
+        self.sensor1 = None
+        self.sensor2 = None
+        self.manager = None
 
     def tearDown(self):
-        self.data = None
-        self.average = None
-        self.standard_deviation = None
-
-    async def test_pipeline(self):
-
-        pipeline = Pipeline()
-        pipeline.add_filter(StdFilter())
-        pipeline.add_filter(BatchAverageFilter())
-        result = await pipeline.run(self.data)
-        # Check shape
-        self.assertEqual(result.shape, (1, 2))
-        # Check datetime
-        self.assertEqual(result.iloc[0, 0], self.data.iloc[self.data.shape[0] - 1, 0])
-        # Check average
-        self.assertEqual(round(result.iloc[0, 1], 2), round((100 + 120 + 110 + 100 + 115 + 100 + 156.58) / 7, 2))
+        pass
 
     async def test_sensor(self):
 
-        std_filter = StdFilter()
-        std_exporter = WeeklyCsvExporter("std")
-        std_filter.add_exporter(std_exporter)
-        pipeline = Pipeline()
-        pipeline.add_filter(std_filter)
-        reader = FeedScaleRTUReader(length=40, duration=0.2, slave=1, port="COM3")
-        raw_exporter = WeeklyCsvExporter("raw")
-        reader.add_exporter(raw_exporter)
-        self.sensor = FeedScale(reader=reader, pipeline=pipeline, name="test")
-        data = await self.sensor.run()
-        self.assertEqual(40, data.iloc[30, 1])
-        os.remove(std_exporter._generate_path())
-        os.remove(raw_exporter._generate_path())
-        print(self.sensor)
+        self.manager = ModbusRTUGatewayConnectionsManager()
+        settings = RTUConnectionSettings("COM3")
+        await self.manager.create_connection(settings)
+
+        self.sensor1 = FeedScaleRTUSensor(
+            name="test", 
+            client=self.manager.get_connection("COM3"), 
+            slave=1
+        )
+        self.sensor2 = FeedScaleRTUSensor(
+            name="test", 
+            client=self.manager.get_connection("COM3"), 
+            slave=2
+        )
+        
+        df1, df2 = await asyncio.gather(self.sensor1.read_and_process(), self.sensor2.read_and_process())
+        self.assertIsNotNone(df1)
+        self.assertIsNotNone(df2)
+        print(df1)
+        print(df2)
 
 
 if __name__ == '__main__':

@@ -13,12 +13,12 @@ from base.gateway import ModbusRTUGatewayConnectionsManager
 from general import type_check
 
 __all__ = [
-    "ModbusBasedSensor"    
+    "ModbusRTUBasedSensor"    
 ]
 
 
-class ModbusBasedSensor(Sensor, ABC):
-    """ An abstract class for reading data from modbus rtu, tcp, etc.
+class ModbusRTUBasedSensor(Sensor, ABC):
+    """ An abstract class for reading data from modbus rtu.
 
     A period of read look like this:
     while True:
@@ -51,7 +51,7 @@ class ModbusBasedSensor(Sensor, ABC):
             client: ModbusBaseClient,
             slave: int,
     ) -> None:
-        """ An abstract class for reading data from modbus rtu, tcp, etc.
+        """ An abstract class for reading data from modbus rtu.
 
         :param length: number of data read in one call of `read()`.
         :param duration: the duration between two `read_register()` in `read()`.
@@ -69,8 +69,9 @@ class ModbusBasedSensor(Sensor, ABC):
         self.WAITING_TIME = waiting_time
         self._CLIENT = client
         self._SLAVE = slave
-        self._registers: list[ModbusBasedSensor.ModbusRegister] = []
+        self._registers: list[ModbusRTUBasedSensor.ModbusRegister] = []
         self._data: dict[str, list] = {"Timestamp":[]}
+        self.__alive: bool = False
         super().__init__(length, name, waiting_time)
 
     @abstractmethod
@@ -133,21 +134,21 @@ class ModbusBasedSensor(Sensor, ABC):
                         pass
                 except Exception as ex:
                     self.notify_manager(Report(sign=self, content=ex))
+                    self.__alive = False
                     return None
                 if isinstance(result, BaseException):
                     self.notify_manager(Report(sign=self, content=result))
+                    self.__alive = False
                     continue
                 key = register.field_name
                 value = register.transform(result.registers[0])
                 self._data[key].append(value)
-                
 
             self._data["Timestamp"].append(datetime.now())
-            # Let SensorManager handle exceptions.
-
             # Wait for next reading.   
             await asyncio.sleep(self._DURATION)
 
+        self.__alive = True
         batch = DataFrame(self._data)
         # Remember to handle exceptions when notifying.
         await asyncio.gather(
@@ -155,3 +156,6 @@ class ModbusBasedSensor(Sensor, ABC):
             self.notify_pipelines(batch)
         )
         return batch
+    
+    async def is_alive(self) -> bool:
+        return self.__alive
