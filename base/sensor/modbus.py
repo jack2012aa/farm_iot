@@ -9,6 +9,7 @@ from pymodbus.client import ModbusBaseClient
 
 from base.sensor import Sensor
 from base.manage import Report
+from base.gateway import ModbusRTUGatewayConnectionsManager
 from general import type_check
 
 __all__ = [
@@ -88,14 +89,14 @@ class ModbusBasedSensor(Sensor, ABC):
         for key in self._data.keys():
             self._data[key].clear()
 
-    async def read_and_process(self) -> DataFrame:
+    async def read_and_process(self) -> DataFrame | None:
         """Read a batch of data from registers, then export and process them.
 
         Data from different registers will be thrown into pipelines. 
         Please override this function to specify pipeline; or, create a new 
         `Sensor` class for different data.
         :raises: ModbusException.
-        :return: read data with a timestamp.
+        :return: read data with a timestamp. None if the sensor is down.
         """
 
         # Create empty list to save data.
@@ -104,34 +105,45 @@ class ModbusBasedSensor(Sensor, ABC):
         # Read a batch of data.
         for i in range(self._LENGTH_OF_A_BATCH):
 
-            # Create tasks.
-            tasks = []
+            # Because RTU clients are not thread safe, create a async lock 
+            # here to manage the port access.
+            manager = ModbusRTUGatewayConnectionsManager()
+            lock = manager.get_lock(self._CLIENT.comm_params.host)
             for register in self._registers:
-                if register.function_code == 3:
-                    # Set timeout in Client to avoid bounding.
-                    coroutine = self._CLIENT.read_holding_registers(
-                        address=register.address, slave=self._SLAVE
-                    )
-                elif register.function_code == 4:
-                    # Set timeout in Client to avoid bounding.
-                    coroutine = self._CLIENT.read_input_registers(
-                        address=register.address, slave=self._SLAVE
-                    )
-                else: # Ignore incorrect value.
-                    coroutine = asyncio.sleep(0)
-                tasks.append(asyncio.create_task(coroutine))
 
-            self._data["Timestamp"].append(datetime.now())
-            # Let SensorManager handle exceptions.
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result, register in zip(results, self._registers):
+                async def read_holding_registers():
+                    async with lock:
+                        return await self._CLIENT.read_holding_registers(
+                            address=register.address, slave=self._SLAVE
+                        )
+                async def read_input_registers():
+                    async with lock:
+                        return await self._CLIENT.read_input_registers(
+                            address=register.address, slave=self._SLAVE
+                        )
+
+                try:
+                    if register.function_code == 3:
+                        # Set timeout in Client to avoid bounding.
+                        result = await read_holding_registers()
+                    elif register.function_code == 4:
+                        # Set timeout in Client to avoid bounding.
+                        result = await read_input_registers()
+                    else: # Ignore incorrect value.
+                        pass
+                except Exception as ex:
+                    self.notify_manager(Report(sign=self, content=ex))
+                    return None
                 if isinstance(result, BaseException):
-                    print(i, result, register)
                     self.notify_manager(Report(sign=self, content=result))
                     continue
                 key = register.field_name
                 value = register.transform(result.registers[0])
                 self._data[key].append(value)
+                
+
+            self._data["Timestamp"].append(datetime.now())
+            # Let SensorManager handle exceptions.
 
             # Wait for next reading.   
             await asyncio.sleep(self._DURATION)

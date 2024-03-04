@@ -1,4 +1,6 @@
 # Update Log
+## 2024-03-04
+* Modify modbus sensor due to unsopported thread safe.
 ## 2024-02-21
 * Restructure `filter` to universal version and tested.
 * Restructure `gateway` and tested.

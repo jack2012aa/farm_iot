@@ -5,6 +5,7 @@ from pymodbus.client import ModbusBaseClient
 
 from base.sensor.modbus import *
 from base.gateway import ModbusRTUGatewayConnectionsManager, RTUConnectionSettings
+from base.manage import Manager, Report
 
 
 class TestModbusSensor(ModbusBasedSensor):
@@ -20,12 +21,21 @@ class TestModbusSensor(ModbusBasedSensor):
         )
         self._registers.append(reg)
         reg = TestModbusSensor.ModbusRegister(
-            address=1, transform=lambda x: x * 2, field_name="humidity", function_code=3
+            address=2, transform=lambda x: x * 2, field_name="humidity", function_code=4
         )
         self._registers.append(reg)
 
     async def is_alive(self) -> bool:
         return True
+    
+
+class TestManager(Manager):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def handle(self, report: Report) -> None:
+        print(f"Handle {report.content}")
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):
@@ -45,13 +55,36 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.sensor = TestModbusSensor(
             length=10, 
-            duration=0.1, 
+            duration=0.2, 
             waiting_time=5.0,
             client=connection, 
             slave=1   
         )
-        df = await self.sensor.read_and_process()
-        print(df)
+
+        sensor2 = TestModbusSensor(
+            length=10, 
+            duration=0.1,
+            waiting_time=5.0, 
+            client=connection, 
+            slave=2
+        )
+
+        df1, df2 = await asyncio.gather(self.sensor.read_and_process(), sensor2.read_and_process())
+        self.assertIsNotNone(df1)
+        self.assertIsNotNone(df2)
+        print(df1)
+        print(df2)
+
+        sensor3 = TestModbusSensor(
+            length=10, 
+            duration=0.1,
+            waiting_time=5.0, 
+            client=connection, 
+            slave=4
+        )
+        sensor3.set_manager(TestManager())
+        empty_result = await sensor3.read_and_process()
+        self.assertIsNone(empty_result)
 
 
 if __name__ == '__main__':

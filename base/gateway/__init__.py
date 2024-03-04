@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 
 from pymodbus.client.serial import AsyncModbusSerialClient
@@ -35,6 +36,7 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
     """
 
     __connections: dict[str, AsyncModbusSerialClient] = {}
+    __locks: dict[str, asyncio.Lock] = {}
 
     def __init__(self) -> None:
         super().__init__()
@@ -50,7 +52,14 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
         Please DO NOT close the connection through the returned object.
         """
         type_check(port, "port", str)
+        port = port.capitalize()
         return ModbusRTUGatewayConnectionsManager.__connections.get(port)
+
+    def get_lock(self, port: str) -> asyncio.Lock | None:
+        """Return a async lock to manage port access."""
+        type_check(port, "port", str)
+        port = port.capitalize()
+        return ModbusRTUGatewayConnectionsManager.__locks.get(port)
 
     async def create_connection(self, settings: RTUConnectionSettings) -> None:
         """
@@ -61,8 +70,9 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
         Please use `get_connection` to receive the created object.
         """
 
+        port = settings.PORT.capitalize()
         if ModbusRTUGatewayConnectionsManager.__connections.get(
-            settings.PORT
+            port
         ) is None:
             # Create a new connection.
             client = AsyncModbusSerialClient(
@@ -75,10 +85,12 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
                 )
             # Connect
             connected = await client.connect()
-            client.read_holding_registers
             if not connected:
                 #Think about how to handle exceptions later.
                 raise ConnectionError()
             ModbusRTUGatewayConnectionsManager.__connections[
-                settings.PORT
+                port
             ] = client
+            ModbusRTUGatewayConnectionsManager.__locks[
+                port
+            ] = asyncio.Lock()
