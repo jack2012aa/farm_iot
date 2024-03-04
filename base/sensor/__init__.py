@@ -5,7 +5,6 @@ from pandas import DataFrame
 
 from base.pipeline import Pipeline
 from base.export import DataGenerator
-from base.manage import Worker
 from general import type_check
 
 
@@ -14,17 +13,30 @@ class Sensor(DataGenerator, ABC):
     and register pipelines. 
     """
 
-    def __init__(self, length: int) -> None:
+    def __init__(self, length: int, name: str, waiting_time: float) -> None:
         """An abstract sensor class which can read data from any source 
         and register pipelines.
         
-        :param length: the number of data read in one call of `read()` (a batch).        
+        :param length: the number of data read in one call of `read()` (a batch).
+        :param name: name of the `Sensor`.
+        :param waiting_time: waiting time between two batches of reading in second.
         """
 
         type_check(length, "length", int)
+        type_check(name, "name", str)
+        type_check(waiting_time, "waiting_time", float)
+
         self._LENGTH_OF_A_BATCH = length
         self.__pipelines: list[Pipeline] = []
+        self.NAME = name
+        self.WAITING_TIME = waiting_time
         super().__init__()
+
+    async def run(self) -> None:
+        """Read and process data continuously in a while loop."""
+        while True:
+            await self.read_and_process()
+            await asyncio.sleep(self.WAITING_TIME)
 
     @abstractmethod
     async def read_and_process(self) -> DataFrame:

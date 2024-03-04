@@ -1,3 +1,4 @@
+"""Define abstract sensor classes that read data from modbus."""
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -9,6 +10,10 @@ from pymodbus.client import ModbusBaseClient
 from base.sensor import Sensor
 from base.manage import Report
 from general import type_check
+
+__all__ = [
+    "ModbusBasedSensor"    
+]
 
 
 class ModbusBasedSensor(Sensor, ABC):
@@ -40,6 +45,7 @@ class ModbusBasedSensor(Sensor, ABC):
             self,
             length: int,
             duration: float,
+            name: str, 
             waiting_time: float,
             client: ModbusBaseClient,
             slave: int,
@@ -62,9 +68,9 @@ class ModbusBasedSensor(Sensor, ABC):
         self.WAITING_TIME = waiting_time
         self._CLIENT = client
         self._SLAVE = slave
-        self._registers: list[ModbusBasedSensor.ModbusRegister]
+        self._registers: list[ModbusBasedSensor.ModbusRegister] = []
         self._data: dict[str, list] = {"Timestamp":[]}
-        super().__init__(length)
+        super().__init__(length, name, waiting_time)
 
     @abstractmethod
     def initialize_registers(self) -> None:
@@ -96,7 +102,7 @@ class ModbusBasedSensor(Sensor, ABC):
         self._clear_data()
 
         # Read a batch of data.
-        for _ in range(self._LENGTH_OF_A_BATCH):
+        for i in range(self._LENGTH_OF_A_BATCH):
 
             # Create tasks.
             tasks = []
@@ -108,7 +114,7 @@ class ModbusBasedSensor(Sensor, ABC):
                     )
                 elif register.function_code == 4:
                     # Set timeout in Client to avoid bounding.
-                    coroutine = self._CLIENT.read_holding_registers(
+                    coroutine = self._CLIENT.read_input_registers(
                         address=register.address, slave=self._SLAVE
                     )
                 else: # Ignore incorrect value.
@@ -120,9 +126,11 @@ class ModbusBasedSensor(Sensor, ABC):
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for result, register in zip(results, self._registers):
                 if isinstance(result, BaseException):
+                    print(i, result, register)
                     self.notify_manager(Report(sign=self, content=result))
+                    continue
                 key = register.field_name
-                value = register.transform(result)
+                value = register.transform(result.registers[0])
                 self._data[key].append(value)
 
             # Wait for next reading.   

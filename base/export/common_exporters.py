@@ -102,3 +102,14 @@ class WeeklyCsvExporter(CsvExporter):
             self.__DIR,
             f"{now.year}_{now.isocalendar()[1]}_{self.__FILE_NAME}.csv"
         )
+    
+
+class PrintExporter(DataExporter):
+    """A simple exporter to print data in the console."""
+
+    def __init__(self) -> None:
+        """A simple exporter to print data in the console."""
+        super().__init__()
+
+    async def export(self, data: pd.DataFrame) -> None:
+        print("PrintExporter: ", data)

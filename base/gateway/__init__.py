@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from pymodbus.client.serial import AsyncModbusSerialClient
 
 from base.export import DataGenerator
-from base.manage import Report
 from general import type_check
 
 
@@ -76,6 +75,7 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
                 )
             # Connect
             connected = await client.connect()
+            client.read_holding_registers
             if not connected:
                 #Think about how to handle exceptions later.
                 raise ConnectionError()
