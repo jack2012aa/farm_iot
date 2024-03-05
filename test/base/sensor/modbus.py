@@ -33,6 +33,9 @@ class TestManager(Manager):
 
     def handle(self, report: Report) -> None:
         print(f"Handle {report.content}")
+        
+    async def initialize(self) -> None:
+        return
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):

@@ -38,6 +38,9 @@ class TestManager(Manager):
             raise ValueError("Wrong worker.")
         if isinstance(report.content, BaseException):
             raise report.content
+        
+    async def initialize(self) -> None:
+        return
 
 
 class TestGenerator(DataGenerator):

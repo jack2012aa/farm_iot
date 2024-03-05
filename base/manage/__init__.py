@@ -27,6 +27,10 @@ class Manager(ABC):
     @abstractmethod
     def handle(self, report: Report) -> None:
         return NotImplemented
+    
+    @abstractmethod
+    async def initialize(self) -> None:
+        return NotImplemented
 
 
 class Worker(ABC):

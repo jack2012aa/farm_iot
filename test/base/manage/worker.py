@@ -13,7 +13,10 @@ class TestManager(Manager):
         # print("I found an error.", report.sign, report.content)
         if isinstance(report.content, BaseException):
             raise report.content
-
+        
+    async def initialize(self) -> None:
+        return
+    
 
 class TestWorker(Worker):
 
