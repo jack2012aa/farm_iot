@@ -1,4 +1,6 @@
 # Update Log
+## 2024-03-05
+* Wrote the initialize method of RTUGatewayManager and tested.
 ## 2024-03-04
 * Modify modbus sensor due to unsopported thread safe.
 * Wrote feed scale rtu sensor and tested.

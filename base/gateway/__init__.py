@@ -1,10 +1,20 @@
+import os
+import json
 import asyncio
 from dataclasses import dataclass
 
 from pymodbus.client.serial import AsyncModbusSerialClient
 
-from base.export import DataGenerator
+from base.manage import Manager, Report
 from general import type_check
+
+
+class GatewayManager(Manager):
+    """An abstract manager class."""
+    
+    def __init__(self) -> None:
+        """An abstract manager class."""
+        super().__init__()
 
 
 @dataclass
@@ -19,14 +29,14 @@ class RTUConnectionSettings:
     """
 
     PORT: str # port number
-    BAUNDRATE: int = 38400
+    BAUDRATE: int = 38400
     BYTESIZE: int = 8
     PARITY: str = "N"
     STOPBITS: int = 1
     TIME_OUT: int = 5
 
 
-class ModbusRTUGatewayConnectionsManager(DataGenerator):
+class ModbusRTUGatewayManager(GatewayManager):
     """A class managing connection to RTU gateways. 
 
     Because more than one connection to a port is not allowed, this class maps 
@@ -53,13 +63,13 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
         """
         type_check(port, "port", str)
         port = port.upper()
-        return ModbusRTUGatewayConnectionsManager.__connections.get(port)
+        return ModbusRTUGatewayManager.__connections.get(port)
 
     def get_lock(self, port: str) -> asyncio.Lock | None:
         """Return a async lock to manage port access."""
         type_check(port, "port", str)
         port = port.upper()
-        return ModbusRTUGatewayConnectionsManager.__locks.get(port)
+        return ModbusRTUGatewayManager.__locks.get(port)
 
     async def create_connection(self, settings: RTUConnectionSettings) -> None:
         """
@@ -71,13 +81,13 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
         """
 
         port = settings.PORT.upper()
-        if ModbusRTUGatewayConnectionsManager.__connections.get(
+        if ModbusRTUGatewayManager.__connections.get(
             port
         ) is None:
             # Create a new connection.
             client = AsyncModbusSerialClient(
                     port=settings.PORT,
-                    baudrate=settings.BAUNDRATE,
+                    baudrate=settings.BAUDRATE,
                     bytesize=settings.BYTESIZE,
                     parity=settings.PARITY,
                     stopbits=settings.STOPBITS,
@@ -88,9 +98,61 @@ class ModbusRTUGatewayConnectionsManager(DataGenerator):
             if not connected:
                 #Think about how to handle exceptions later.
                 raise ConnectionError()
-            ModbusRTUGatewayConnectionsManager.__connections[
+            ModbusRTUGatewayManager.__connections[
                 port
             ] = client
-            ModbusRTUGatewayConnectionsManager.__locks[
+            ModbusRTUGatewayManager.__locks[
                 port
             ] = asyncio.Lock()
+            
+    def handle(self, report: Report) -> None:
+        """No one should call this method."""
+        print(report.content)
+        
+    async def initialize(self, path: str) -> None:
+        """Read settings from json file and connect to gateways.
+        
+        The json setting file should look like this:
+        {
+            "Gateway1":{
+                "port": "COM3",
+                "baudrate": 38400,
+                "bytesize": 8,
+                "parity": "N",
+                "stopbits": 1,
+                "time_out": 5
+            },
+            "Gateway2":{
+                "port": COM5, 
+                ...
+            }
+        }
+        """
+        
+        type_check(path, "path", str)
+        if not os.path.exists(path):
+            print(f"Path \"{path}\" does not exist.")
+            print("Fail to initialize RTU gateways.")
+            raise FileNotFoundError
+        with open(path) as file:
+            settings: dict = json.load(file)
+            for gateway_name, setting_dict in settings.items():
+                print(f"Connecting to {gateway_name}...")
+                try:
+                    setting = RTUConnectionSettings(
+                        PORT=setting_dict["port"], 
+                        BAUDRATE=int(setting_dict["baudrate"]),
+                        BYTESIZE=int(setting_dict["bytesize"]),
+                        PARITY=setting_dict["parity"], 
+                        STOPBITS=int(setting_dict["stopbits"]),
+                        TIME_OUT=int(setting_dict["time_out"])
+                    )
+                    await self.create_connection(settings=setting)
+                    print("Connect successfully.\n")
+                except KeyError as ex:
+                    print(f"Missing key \"{ex.args[0]}\".")
+                    print(f"Connection fails.\n")
+                    continue
+                except ConnectionError as ex:
+                    print(f"Connection fails.\n")
+                    continue

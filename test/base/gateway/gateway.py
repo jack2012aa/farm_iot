@@ -1,13 +1,13 @@
 import asyncio
 import unittest
 
-from base.gateway import RTUConnectionSettings, ModbusRTUGatewayConnectionsManager
+from base.gateway import RTUConnectionSettings, ModbusRTUGatewayManager
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
-        self.manager = ModbusRTUGatewayConnectionsManager()
+        self.manager = ModbusRTUGatewayManager()
 
     def tearDown(self):
         pass
@@ -20,7 +20,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         await self.manager.create_connection(settings)
 
         connection1 = self.manager.get_connection("COM3")
-        self.manager = ModbusRTUGatewayConnectionsManager()
+        self.manager = ModbusRTUGatewayManager()
         connection2 = self.manager.get_connection("com3")
         self.assertEqual(connection1, connection2)
 
@@ -40,6 +40,15 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(0)
         await asyncio.gather(task_test(), task_test())
         self.assertEqual(len(count), 2)
+        
+    async def test_initialize(self):
+        
+        await self.manager.initialize("test/base/gateway/test_settings.json")
+        self.assertIsNotNone(self.manager.get_connection("COM3"))
+        self.assertIsNone(self.manager.get_connection("COM10"))
+        self.assertIsNone(self.manager.get_connection("COM7"))
+        with self.assertRaises(FileNotFoundError):
+            await self.manager.initialize("wrong_path")
 
 
 if __name__ == '__main__':

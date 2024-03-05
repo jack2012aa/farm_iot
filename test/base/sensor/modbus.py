@@ -4,7 +4,7 @@ import asyncio
 from pymodbus.client import ModbusBaseClient
 
 from base.sensor.modbus import *
-from base.gateway import ModbusRTUGatewayConnectionsManager, RTUConnectionSettings
+from base.gateway import ModbusRTUGatewayManager, RTUConnectionSettings
 from base.manage import Manager, Report
 
 
@@ -48,7 +48,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_read(self):
 
-        manager = ModbusRTUGatewayConnectionsManager()
+        manager = ModbusRTUGatewayManager()
         settings = RTUConnectionSettings(PORT="COM3")
         await manager.create_connection(settings)
         connection = manager.get_connection(port="COM3")

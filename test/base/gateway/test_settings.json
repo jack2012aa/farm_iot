@@ -1,0 +1,26 @@
+{
+    "COM3": {
+        "port": "COM3", 
+        "baudrate": 38400, 
+        "bytesize": 8, 
+        "parity": "N", 
+        "stopbits": 1, 
+        "time_out": 5
+    }, 
+    "COM10": {
+        "port": "COM10", 
+        "baudrate": 38400, 
+        "bytesize": 8, 
+        "parity": "N", 
+        "stopbits": 1, 
+        "time_out": 5
+    }, 
+    "COM7": {
+        "port": "COM7", 
+        "baudrate": 38400, 
+        "bytesize": 8, 
+        "parity": "N", 
+        "stopbits": 1, 
+        "time_out": 5
+    }
+}

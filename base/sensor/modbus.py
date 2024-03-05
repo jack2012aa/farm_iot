@@ -9,7 +9,7 @@ from pymodbus.client import ModbusBaseClient
 
 from base.sensor import Sensor
 from base.manage import Report
-from base.gateway import ModbusRTUGatewayConnectionsManager
+from base.gateway import ModbusRTUGatewayManager
 from general import type_check
 
 __all__ = [
@@ -108,7 +108,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
 
             # Because RTU clients are not thread safe, create a async lock 
             # here to manage the port access.
-            manager = ModbusRTUGatewayConnectionsManager()
+            manager = ModbusRTUGatewayManager()
             lock = manager.get_lock(self._CLIENT.comm_params.host)
             for register in self._registers:
 

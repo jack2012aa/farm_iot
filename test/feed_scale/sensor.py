@@ -3,7 +3,7 @@
 import asyncio
 import unittest
 
-from base.gateway import ModbusRTUGatewayConnectionsManager, RTUConnectionSettings
+from base.gateway import ModbusRTUGatewayManager, RTUConnectionSettings
 from feed_scale.sensor import FeedScaleRTUSensor
 
 
@@ -19,7 +19,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def test_sensor(self):
 
-        self.manager = ModbusRTUGatewayConnectionsManager()
+        self.manager = ModbusRTUGatewayManager()
         settings = RTUConnectionSettings("COM3")
         await self.manager.create_connection(settings)
 
