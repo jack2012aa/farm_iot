@@ -1,4 +1,6 @@
 # Update Log
+## 2024-03-06
+* Wrote exporter factory and pipeline factory to help sensor manager creating sensor.
 ## 2024-03-05
 * Wrote the initialize method of RTUGatewayManager and tested.
 ## 2024-03-04

@@ -3,9 +3,8 @@ import unittest
 from datetime import datetime
 
 import pandas as pd
-from pandas import DataFrame
 
-from base.export.common_exporters import WeeklyCsvExporter
+from base.export.common_exporters import WeeklyCsvExporter, ExporterFactory
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):
@@ -44,6 +43,24 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         pd.testing.assert_frame_equal(read, df)
 
         os.remove(self.exporter._generate_path())
+        
+    async def test_factory(self):
+        
+        factory = ExporterFactory()
+        exporter = factory.create(
+            {
+                "type": "WeeklyCsvExporter", 
+                "file_name": "test", 
+                "dir": "C:/"
+            }
+        )
+        self.assertIsInstance(exporter, WeeklyCsvExporter)
+        
+        with self.assertRaises(ValueError):
+            factory.create({"type":"WrongType"})
+            
+        with self.assertRaises(KeyError):
+            factory.create({"type": "WeeklyCsvExporter"})
 
 
 if __name__ == '__main__':

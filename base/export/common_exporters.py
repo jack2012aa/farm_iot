@@ -13,6 +13,12 @@ from base.manage import Report
 from base.export import DataExporter
 
 
+__all__ = [
+    "WeeklyCsvExporter", 
+    "ExporterFactory"
+]
+
+
 class CsvExporter(DataExporter, abc.ABC):
     """ An abstract class to export data to csv."""
 
@@ -113,3 +119,37 @@ class PrintExporter(DataExporter):
 
     async def export(self, data: pd.DataFrame) -> None:
         print("PrintExporter: ", data)
+
+
+class ExporterFactory():
+    """A factory class to help construct exporter using dictionary."""
+
+    def __init__(self) -> None:
+        """A factory class to help construct exporter using dictionary."""
+        pass
+
+    def create(self, settings: dict) -> DataExporter:
+        """Create an exporter using dictionary settings.
+
+        Settings should look like this:
+
+        {
+            "type": CSVExporter, 
+            #Exporter specific settings.
+        }
+        
+        :param settings: a dictionary with exporter specific settings.
+        :raises: ValueError, KeyError.
+        """
+
+        try:
+            match settings["type"]:
+                case "WeeklyCsvExporter":
+                    return WeeklyCsvExporter(settings["file_name"], settings["dir"])
+                case _:
+                    print(f"Exporter type {settings["type"]} does not exist.")
+                    raise ValueError
+        #Required specific setting not found.
+        except KeyError as ex:
+            print(f"Exporter type {settings["type"]} misses setting \"{ex.args[0]}\"")
+            raise ex

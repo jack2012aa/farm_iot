@@ -71,7 +71,6 @@ class ModbusRTUBasedSensor(Sensor, ABC):
         self._SLAVE = slave
         self._registers: list[ModbusRTUBasedSensor.ModbusRegister] = []
         self._data: dict[str, list] = {"Timestamp":[]}
-        self.__alive: bool = False
         super().__init__(length, name, waiting_time)
 
     @abstractmethod
@@ -89,6 +88,19 @@ class ModbusRTUBasedSensor(Sensor, ABC):
         """Clear the data in self.data"""
         for key in self._data.keys():
             self._data[key].clear()
+
+    async def __read_holding_registers(self, register, lock):
+        """Help create a locked coroutine."""
+        async with lock:
+            return await self._CLIENT.read_holding_registers(
+                address=register.address, slave=self._SLAVE
+            )
+    async def __read_input_registers(self, register, lock):
+        """Help create a locked coroutine."""
+        async with lock:
+            return await self._CLIENT.read_input_registers(
+                address=register.address, slave=self._SLAVE
+            )
 
     async def read_and_process(self) -> DataFrame | None:
         """Read a batch of data from registers, then export and process them.
@@ -112,33 +124,20 @@ class ModbusRTUBasedSensor(Sensor, ABC):
             lock = manager.get_lock(self._CLIENT.comm_params.host)
             for register in self._registers:
 
-                async def read_holding_registers():
-                    async with lock:
-                        return await self._CLIENT.read_holding_registers(
-                            address=register.address, slave=self._SLAVE
-                        )
-                async def read_input_registers():
-                    async with lock:
-                        return await self._CLIENT.read_input_registers(
-                            address=register.address, slave=self._SLAVE
-                        )
-
                 try:
                     if register.function_code == 3:
                         # Set timeout in Client to avoid bounding.
-                        result = await read_holding_registers()
+                        result = await self.__read_holding_registers(register, lock)
                     elif register.function_code == 4:
                         # Set timeout in Client to avoid bounding.
-                        result = await read_input_registers()
+                        result = await self.__read_input_registers(register, lock)
                     else: # Ignore incorrect value.
                         pass
                 except Exception as ex:
                     self.notify_manager(Report(sign=self, content=ex))
-                    self.__alive = False
                     return None
                 if isinstance(result, BaseException):
                     self.notify_manager(Report(sign=self, content=result))
-                    self.__alive = False
                     continue
                 key = register.field_name
                 value = register.transform(result.registers[0])
@@ -148,7 +147,6 @@ class ModbusRTUBasedSensor(Sensor, ABC):
             # Wait for next reading.   
             await asyncio.sleep(self._DURATION)
 
-        self.__alive = True
         batch = DataFrame(self._data)
         # Remember to handle exceptions when notifying.
         await asyncio.gather(
@@ -158,4 +156,19 @@ class ModbusRTUBasedSensor(Sensor, ABC):
         return batch
     
     async def is_alive(self) -> bool:
-        return self.__alive
+        """Check whether the sensor is alive by reading a register."""
+        
+        register = self._registers[0]
+        lock = ModbusRTUGatewayManager().get_lock(self._CLIENT.comm_params.host)
+        if register.function_code == 3:
+            try:
+                await self.__read_holding_registers(register, lock)
+                return True
+            except:
+                return False
+        elif register.function_code == 4:
+            try:
+                await self.__read_input_registers(register, lock)
+                return True
+            except:
+                False
