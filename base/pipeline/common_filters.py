@@ -3,6 +3,7 @@
 from pandas import DataFrame
 
 from general import type_check
+from base.manage import Manager
 from base.pipeline import Filter, Pipeline
 from base.export.common_exporters import ExporterFactory
 
@@ -67,7 +68,7 @@ class PipelineFactory():
     def __init__(self) -> None:
         pass
 
-    def create(self, settings: list) -> Pipeline:
+    def create(self, settings: list, manager: Manager = None) -> Pipeline:
         """Create a pipeline using the settings. 
 
         Settings should look like this:
@@ -83,6 +84,7 @@ class PipelineFactory():
         Please refer to example json for detail.
 
         :param settings: settings of the pipeline, including filters, exporters, etc.
+        :param manager: exporters' manager.
         :raise: ValueError, KeyError.
         """
 
@@ -113,7 +115,9 @@ class PipelineFactory():
             if exporters_settings is None:
                 exporters_settings = []
             for exporter in exporters_settings:
-                filter.add_exporter(exporter_factory.create(exporter))
+                new_exporter = exporter_factory.create(exporter)
+                new_exporter.set_manager(manager)
+                filter.add_exporter(new_exporter)
             pipeline.add_filter(filter)
 
         return pipeline

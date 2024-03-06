@@ -44,6 +44,8 @@ class Worker(ABC):
         
         :param manager: manager to report when something happens.
         """
+        if manager is None:
+            return
         type_check(manager, "manager", Manager)
         self.__manager = manager
 

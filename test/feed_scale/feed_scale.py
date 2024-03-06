@@ -18,10 +18,14 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.sensor2 = None
         self.gateway_manager = ModbusRTUGatewayManager()
         self.scale_manager = FeedScaleManager()
+        self.files = []
 
     def tearDown(self):
         self.gateway_manager = None
         self.scale_manager = None
+        for file in self.files:
+            if os.path.isfile(file):
+                os.remove(file)
 
     async def test_sensor(self):
 
@@ -62,25 +66,30 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
             RTUConnectionSettings("COM5")
         )
         await self.scale_manager.initialize(path)
-        scale = self.scale_manager.scales[0]
-        await scale.read_and_process()
         
-        pathes = [
+        async def stop_reading(task):
+            
+            await asyncio.sleep(9)
+            task.cancel()
+            
+        with self.assertRaises(asyncio.CancelledError):
+            task1 = asyncio.create_task(self.scale_manager.run())
+            task2 = asyncio.create_task(stop_reading(task1))
+            await asyncio.gather(task1, task2)
+        
+        self.files = [
             WeeklyCsvExporter("raw")._generate_path(),
             WeeklyCsvExporter("average")._generate_path(),
-            WeeklyCsvExporter("std")._generate_path()
+            WeeklyCsvExporter("std")._generate_path(), 
+            WeeklyCsvExporter("raw01")._generate_path()
         ]
         
-        read = pd.read_csv(pathes[0])
-        self.assertEqual(40, read.shape[0])
-        read = pd.read_csv(pathes[1])
-        self.assertEqual(1, read.shape[0])
-        read = pd.read_csv(pathes[2])
-        self.assertEqual(40, read.shape[0])
-        
-        for p in pathes:
-            self.assertTrue(os.path.isfile(p))
-            os.remove(p)
+        read = pd.read_csv(self.files[0])
+        self.assertEqual(20, read.shape[0])
+        read = pd.read_csv(self.files[1])
+        self.assertEqual(2, read.shape[0])
+        read = pd.read_csv(self.files[2])
+        self.assertEqual(20, read.shape[0])
             
         path = "test/feed_scale/test_wrong_type.json"
         with self.assertRaises(ValueError):

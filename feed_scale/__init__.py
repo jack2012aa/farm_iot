@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from abc import ABC
 
 from pymodbus.client.serial import AsyncModbusSerialClient
@@ -9,6 +10,7 @@ from base.manage import Manager, Report
 from base.sensor import Sensor
 from base.sensor.modbus import ModbusRTUBasedSensor
 from base.gateway import ModbusRTUGatewayManager
+from base.export import DataExporter
 from base.export.common_exporters import ExporterFactory
 from base.pipeline.common_filters import PipelineFactory
 
@@ -71,9 +73,20 @@ class FeedScaleManager(Manager):
     def __init__(self) -> None:
         super().__init__()
         self.scales: list[FeedScale] = []
+        self.tasks = {}
 
     async def handle(self, report: Report) -> None:
-        pass
+        
+        worker = report.sign
+        if isinstance(worker, FeedScale):
+            self.tasks[worker.NAME].cancel()
+            print(f"Stop reading from scale \"{worker.NAME}\".")
+        elif isinstance(worker, DataExporter):
+            print(f"Exporter \"{str(worker)}\" is broken due to \"{report.content}\".")
+            
+        #Let other task do their job.
+        await asyncio.sleep(0)
+        return
 
     async def initialize(self, path: str) -> None:
         """Read settings from json file and connect to feed scales.
@@ -132,7 +145,9 @@ class FeedScaleManager(Manager):
             if exporters is None:
                 exporters = []
             for exporter in exporters:
-                scale.add_exporter(exporter_factory.create(exporter))
+                new_exporter = exporter_factory.create(exporter)
+                new_exporter.set_manager(self)
+                scale.add_exporter(new_exporter)
                 
             #Create and set pipelines.
             pipelines = settings.get("pipelines")
@@ -164,3 +179,19 @@ class FeedScaleManager(Manager):
         return FeedScaleRTUSensor(
             length, duration, waiting_time, name, client, slave
         )
+        
+    async def __create_reading_loop(self, scale: FeedScale):
+        """Create an infinite while loop of reading."""
+        
+        while True:
+            await scale.read_and_process()
+            await asyncio.sleep(scale.WAITING_TIME)
+        
+    async def run(self) -> None:
+        """Let scales in the list begin to read in an infinite while loop."""
+        
+        for scale in self.scales:
+            task = asyncio.create_task(self.__create_reading_loop(scale))
+            self.tasks[scale.NAME] = task
+            
+        await asyncio.gather(*self.tasks.values(), return_exceptions=True)
