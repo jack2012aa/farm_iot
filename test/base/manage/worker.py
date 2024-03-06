@@ -39,7 +39,7 @@ class TestWorker(Worker):
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
             if isinstance(result, BaseException):
-                self.notify_manager(Report(sign=self, content=result))
+                await self.notify_manager(Report(sign=self, content=result))
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):

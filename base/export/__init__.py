@@ -68,7 +68,7 @@ class DataGenerator(Worker):
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
             if isinstance(result, BaseException):
-                self.notify_manager(Report(sign=self, content=result))
+                await self.notify_manager(Report(sign=self, content=result))
 
     def list_exporters(self) -> list[str]:
         """ Return the description of exporters in the exporter list."""

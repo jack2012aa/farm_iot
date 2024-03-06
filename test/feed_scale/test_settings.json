@@ -23,7 +23,7 @@
         "length": 10,
         "duration": 0.1,
         "waiting_time": 4.0,
-        "exporters": [{"type": "WeeklyCsvExporter", "file_name": "raw01"}],
+        "exporters": [{"type": "WeeklyCsvExporter", "file_name": "raw01"}, {"type": "RaiseExporter"}],
         "pipelines": []
     }
 }

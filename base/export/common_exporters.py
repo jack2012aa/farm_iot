@@ -56,7 +56,7 @@ class CsvExporter(DataExporter, abc.ABC):
                         ))
         # Let the manager decides how to handle the error.
         except Exception as ex: 
-            self.notify_manager(report=Report(sign=self, content=ex))
+            await self.notify_manager(report=Report(sign=self, content=ex))
 
 
 class DatabaseExporter(DataExporter, abc.ABC):
@@ -129,7 +129,8 @@ class RaiseExporter(DataExporter):
         super().__init__()
 
     async def export(self, data: pd.DataFrame) -> None:
-        raise AssertionError(data)
+        await self.notify_manager(Report(sign=self, content=AssertionError))
+        return None
 
 
 class ExporterFactory():

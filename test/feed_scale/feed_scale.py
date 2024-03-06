@@ -67,9 +67,9 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         )
         await self.scale_manager.initialize(path)
         
-        async def stop_reading(task):
+        async def stop_reading(task, sleeping_time = 9):
             
-            await asyncio.sleep(9)
+            await asyncio.sleep(sleeping_time)
             task.cancel()
             
         with self.assertRaises(asyncio.CancelledError):
@@ -90,7 +90,21 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(2, read.shape[0])
         read = pd.read_csv(self.files[2])
         self.assertEqual(20, read.shape[0])
-            
+
+        await self.scale_manager.initialize(path)
+        task1 = asyncio.create_task(self.scale_manager.run())
+        stopped_task = self.scale_manager.tasks["Test 1"]
+        task2 = asyncio.create_task(stop_reading(stopped_task, 5))
+        task3 = asyncio.create_task(stop_reading(task1))
+
+        with self.assertRaises(asyncio.CancelledError):
+            await asyncio.gather(task1, task2, task3)
+
+        read = pd.read_csv(self.files[0])
+        self.assertEqual(30, read.shape[0])
+        read = pd.read_csv(self.files[3])
+        self.assertEqual(40, read.shape[0])
+
         path = "test/feed_scale/test_wrong_type.json"
         with self.assertRaises(ValueError):
             await self.scale_manager.initialize(path)

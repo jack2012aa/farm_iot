@@ -64,7 +64,7 @@ class Sensor(DataGenerator, ABC):
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
             if isinstance(result, BaseException):
-                self.notify_manager(sign=self, content=result)
+                await self.notify_manager(sign=self, content=result)
 
     @abstractmethod
     async def is_alive(self) -> bool:

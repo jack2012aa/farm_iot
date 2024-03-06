@@ -134,10 +134,10 @@ class ModbusRTUBasedSensor(Sensor, ABC):
                     else: # Ignore incorrect value.
                         pass
                 except Exception as ex:
-                    self.notify_manager(Report(sign=self, content=ex))
+                    await self.notify_manager(Report(sign=self, content=ex))
                     return None
                 if isinstance(result, BaseException):
-                    self.notify_manager(Report(sign=self, content=result))
+                    await self.notify_manager(Report(sign=self, content=result))
                     continue
                 key = register.field_name
                 value = register.transform(result.registers[0])

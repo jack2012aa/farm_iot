@@ -80,7 +80,7 @@ class FeedScaleManager(Manager):
         worker = report.sign
         if isinstance(worker, FeedScale):
             self.tasks[worker.NAME].cancel()
-            print(f"Stop reading from scale \"{worker.NAME}\".")
+            print(f"Stop reading from scale \"{worker.NAME}\" due to error \"{report.content}\".")
         elif isinstance(worker, DataExporter):
             print(f"Exporter \"{str(worker)}\" is broken due to \"{report.content}\".")
             
@@ -158,6 +158,8 @@ class FeedScaleManager(Manager):
                 
             scale.set_manager(self)
             self.scales.append(scale)
+            task = asyncio.create_task(self.__create_reading_loop(scale))
+            self.tasks[scale.NAME] = task
                 
     def __create_RTU_scale(self, name: str, settings: dict) -> FeedScaleRTUSensor:
         """Create a rtu scale using settings."""
@@ -190,8 +192,4 @@ class FeedScaleManager(Manager):
     async def run(self) -> None:
         """Let scales in the list begin to read in an infinite while loop."""
         
-        for scale in self.scales:
-            task = asyncio.create_task(self.__create_reading_loop(scale))
-            self.tasks[scale.NAME] = task
-            
         await asyncio.gather(*self.tasks.values(), return_exceptions=True)

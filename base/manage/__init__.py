@@ -25,7 +25,7 @@ class Manager(ABC):
         self.workers: set[Worker] = set()
 
     @abstractmethod
-    def handle(self, report: Report) -> None:
+    async def handle(self, report: Report) -> None:
         return NotImplemented
     
     @abstractmethod
@@ -49,9 +49,9 @@ class Worker(ABC):
         type_check(manager, "manager", Manager)
         self.__manager = manager
 
-    def notify_manager(self, report: Report) -> None:
+    async def notify_manager(self, report: Report) -> None:
         """Report to manager.
         
         :param report: things to report.
         """
-        self.__manager.handle(report)
+        await self.__manager.handle(report)
