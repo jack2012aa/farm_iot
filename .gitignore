@@ -2,3 +2,4 @@
 *_env
 dockerfile
 scripts.py
+email_settings.json

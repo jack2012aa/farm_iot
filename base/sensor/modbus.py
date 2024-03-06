@@ -50,6 +50,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
             waiting_time: float,
             client: ModbusBaseClient,
             slave: int,
+            belonging: tuple[str] = tuple()
     ) -> None:
         """ An abstract class for reading data from modbus rtu.
 
@@ -58,6 +59,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
         :param waiting_time: the waiting time between two `read()`.
         :param client: a connection to modbus gateway. Please use `GatewayManager` to receive the connection.
         :param slave: port number in modbus.
+        :param belonging: the belonging of this sensor, who are in charge of it.
         """
 
         type_check(duration, "duration", float)
@@ -71,7 +73,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
         self._SLAVE = slave
         self._registers: list[ModbusRTUBasedSensor.ModbusRegister] = []
         self._data: dict[str, list] = {"Timestamp":[]}
-        super().__init__(length, name, waiting_time)
+        super().__init__(length, name, waiting_time, belonging)
 
     @abstractmethod
     def initialize_registers(self) -> None:

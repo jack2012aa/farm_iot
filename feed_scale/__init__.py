@@ -44,6 +44,7 @@ class FeedScaleRTUSensor(ModbusRTUBasedSensor, FeedScale):
             name: str,
             client: AsyncModbusSerialClient,
             slave: int,
+            belonging: tuple[str] = tuple()
     ) -> None:
         """Read scale data from a RTU slave. 
 
@@ -53,10 +54,19 @@ class FeedScaleRTUSensor(ModbusRTUBasedSensor, FeedScale):
         :param name: the name of the scale.
         :param client: a connection to modbus gateway. Please use `GatewayManager` to receive the connection.
         :param slave: port number in modbus.
+        :param belonging: the belonging of this sensor, who are in charge of it.
         """
 
         type_check(client, "client", AsyncModbusSerialClient)
-        super().__init__(length, duration, name, waiting_time, client, slave)
+        super().__init__(
+            length, 
+            duration, 
+            name, 
+            waiting_time, 
+            client, 
+            slave, 
+            belonging
+        )
         self.initialize_registers()
         self.initialize_data()
 
@@ -102,6 +112,7 @@ class FeedScaleManager(Manager):
                 "length": 
                 "duration":
                 "waiting_time":
+                "belonging":
                 "exporters":[]
                 "pipelines":[]
             }
@@ -168,6 +179,9 @@ class FeedScaleManager(Manager):
         duration = settings["duration"]
         waiting_time = settings["waiting_time"]
         slave = settings["connection settings"]["slave"]
+        belonging = settings.get("belonging")
+        if belonging is not None:
+            belonging = tuple(belonging)
         
         #Get gateway connection.
         gateway_manager = ModbusRTUGatewayManager()

@@ -1,4 +1,4 @@
-"""Main application"""
+"""Main application."""
 
 #Initialize managers
 

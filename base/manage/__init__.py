@@ -1,7 +1,10 @@
 """Define classes to manage works done in different hierarchies."""
 
-from abc import ABC, abstractmethod
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
 from general import type_check
 
@@ -20,9 +23,25 @@ class Report:
 
 class Manager(ABC):
 
-    def __init__(self) -> None:
-        """A class which manages `Worker` objects and handles there report."""
+    def __init__(self, email_settings: dict = None) -> None:
+        """A class which manages `Worker` objects and handles there report.
+        
+        email settings should look like:
+        {
+            "subject": 
+            "from":
+            "domain_mail_account":
+            "domain_mail_password":
+            "employeer_emails: {
+                "A": "xxxx@gmail.com", 
+                "B": "yyyy@gmail.com"
+            }
+        }
+
+        :param email_settings: settings used for sending alarm email.
+        """
         self.workers: set[Worker] = set()
+        self.email_settings = email_settings
 
     @abstractmethod
     async def handle(self, report: Report) -> None:
@@ -31,6 +50,37 @@ class Manager(ABC):
     @abstractmethod
     async def initialize(self) -> None:
         return NotImplemented
+    
+    async def send_alarm_email(self, recipients: tuple[str], content_text: str) -> None:
+        """Send an alarm email to recipients' email address.
+
+        Invalid email will be ignored.
+        
+        :param recipients: emails of recipients.
+        :param content_text: content in the email.
+        :raises: TypeError, ValueError.
+        """
+
+        if self.email_settings is None:
+            raise ValueError("Email settings should not be None if you want to send an email.")
+        type_check(recipients, "recipients", tuple)
+        type_check(content_text, "content_text", str)
+
+        content = MIMEMultipart()
+        content["subject"] = self.email_settings["subject"]
+        content["from"] = self.email_settings["from"]
+        emails = []
+        for recipient in recipients:
+            emails.append(self.email_settings["employeer_emails"][recipient])
+        content["to"] = ", ".join(emails)
+        content.attach(MIMEText(content_text))
+        with smtplib.SMTP_SSL(host="smtp.gmail.com", port=465, local_hostname="[127.0.0.1]") as smtp:
+            smtp.ehlo_or_helo_if_needed()
+            smtp.login(
+                self.email_settings["domain_mail_account"],
+                self.email_settings["domain_mail_password"]
+            )
+            smtp.send_message(content)
 
 
 class Worker(ABC):

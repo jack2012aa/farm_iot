@@ -12,7 +12,8 @@
         "pipelines": [
             [{"type": "BatchAverageFilter", "exporters": [{"type": "WeeklyCsvExporter", "file_name": "average"}]}], 
             [{"type": "StdFilter", "exporters": [{"type": "WeeklyCsvExporter", "file_name": "std"}]}]
-        ]
+        ], 
+        "belonging": ["Chang-Yu Huang"]
     }, 
     "Test 2":{
         "connection type": "RTU", 

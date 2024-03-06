@@ -1,3 +1,4 @@
+import json
 import unittest
 import asyncio
 
@@ -56,6 +57,15 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.worker.set_manager(self.manager)
         with self.assertRaises(ValueError):
             await self.worker.work()
+
+    async def test_send_email(self):
+
+        with open("test/base/manage/email_settings.json") as file:
+            email_settings = json.load(file)
+        self.manager.email_settings = email_settings
+        await self.manager.send_alarm_email(tuple(["Chang-Yu Huang"]), "Testing.")
+        await self.manager.send_alarm_email(tuple(["Chang-Yu Huang", "Fake"]), "Testing.")
+
 
 if __name__ == '__main__':
     unittest.main()
