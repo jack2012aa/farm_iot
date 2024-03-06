@@ -4,7 +4,7 @@ import asyncio
 import unittest
 
 from base.gateway import ModbusRTUGatewayManager, RTUConnectionSettings
-from feed_scale.sensor import FeedScaleRTUSensor
+from feed_scale import FeedScaleRTUSensor
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):

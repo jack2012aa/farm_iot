@@ -127,6 +127,9 @@ class ModbusRTUGatewayManager(GatewayManager):
                 ...
             }
         }
+        
+        :param path: path to the json setting file.
+        :raises: FileNotFoundError.
         """
         
         type_check(path, "path", str)
@@ -136,23 +139,23 @@ class ModbusRTUGatewayManager(GatewayManager):
             raise FileNotFoundError
         with open(path) as file:
             settings: dict = json.load(file)
-            for gateway_name, setting_dict in settings.items():
-                print(f"Connecting to {gateway_name}...")
-                try:
-                    setting = RTUConnectionSettings(
-                        PORT=setting_dict["port"], 
-                        BAUDRATE=int(setting_dict["baudrate"]),
-                        BYTESIZE=int(setting_dict["bytesize"]),
-                        PARITY=setting_dict["parity"], 
-                        STOPBITS=int(setting_dict["stopbits"]),
-                        TIME_OUT=int(setting_dict["time_out"])
-                    )
-                    await self.create_connection(settings=setting)
-                    print("Connect successfully.\n")
-                except KeyError as ex:
-                    print(f"Missing key \"{ex.args[0]}\".")
-                    print(f"Connection fails.\n")
-                    continue
-                except ConnectionError as ex:
-                    print(f"Connection fails.\n")
-                    continue
+        for gateway_name, setting_dict in settings.items():
+            print(f"Connecting to {gateway_name}...")
+            try:
+                setting = RTUConnectionSettings(
+                    PORT=setting_dict["port"], 
+                    BAUDRATE=int(setting_dict["baudrate"]),
+                    BYTESIZE=int(setting_dict["bytesize"]),
+                    PARITY=setting_dict["parity"], 
+                    STOPBITS=int(setting_dict["stopbits"]),
+                    TIME_OUT=int(setting_dict["time_out"])
+                )
+                await self.create_connection(settings=setting)
+                print("Connect successfully.\n")
+            except KeyError as ex:
+                print(f"Missing key \"{ex.args[0]}\".")
+                print(f"Connection fails.\n")
+                continue
+            except ConnectionError as ex:
+                print(f"Connection fails.\n")
+                continue
