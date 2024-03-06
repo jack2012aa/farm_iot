@@ -91,13 +91,14 @@ class ModbusRTUGatewayManager(GatewayManager):
                     bytesize=settings.BYTESIZE,
                     parity=settings.PARITY,
                     stopbits=settings.STOPBITS,
-                    time_out=settings.TIME_OUT, 
+                    time_out=settings.TIME_OUT,
                 )
             # Connect
             connected = await client.connect()
             if not connected:
                 #Think about how to handle exceptions later.
                 raise ConnectionError()
+            client.params.retries = 1
             ModbusRTUGatewayManager.__connections[
                 port
             ] = client

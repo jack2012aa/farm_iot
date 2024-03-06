@@ -121,6 +121,17 @@ class PrintExporter(DataExporter):
         print("PrintExporter: ", data)
 
 
+class RaiseExporter(DataExporter):
+    """A exporter that raises an exception when receive a data."""
+    
+    def __init__(self) -> None:
+        """A exporter that raises an exception when receive a data."""
+        super().__init__()
+
+    async def export(self, data: pd.DataFrame) -> None:
+        raise AssertionError(data)
+
+
 class ExporterFactory():
     """A factory class to help construct exporter using dictionary."""
 
@@ -145,7 +156,14 @@ class ExporterFactory():
         try:
             match settings["type"]:
                 case "WeeklyCsvExporter":
-                    return WeeklyCsvExporter(settings["file_name"], settings["dir"])
+                    if settings.get("dir") is not None:
+                        return WeeklyCsvExporter(settings["file_name"], settings["dir"])
+                    else:
+                        return WeeklyCsvExporter(settings["file_name"])
+                case "PrintExporter":
+                    return PrintExporter()
+                case "RaiseExporter":
+                    return RaiseExporter()
                 case _:
                     print(f"Exporter type {settings["type"]} does not exist.")
                     raise ValueError
