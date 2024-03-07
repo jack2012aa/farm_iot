@@ -56,6 +56,7 @@ class CsvExporter(DataExporter, abc.ABC):
                         ))
         # Let the manager decides how to handle the error.
         except Exception as ex: 
+            print(ex)
             await self.notify_manager(report=Report(sign=self, content=ex))
 
 

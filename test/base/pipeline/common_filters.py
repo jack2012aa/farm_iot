@@ -2,8 +2,8 @@ import unittest
 from datetime import datetime
 
 from pandas import DataFrame
-import pandas as pd
 
+from base.sensor.csv import CsvSensor
 from base.pipeline.common_filters import *
 
 
@@ -31,6 +31,12 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         result = await filter.process(data)
         self.assertEqual(result.iloc[0, 1], 3)
         self.assertEqual(result.iloc[0, 0], n)
+
+    async def test_time_filter(self):
+
+        reader = CsvSensor(40, "test/base/sensor/test_data.csv")
+        filter = TimeFilter(["2", "3"], ["Weight 1", "Weight 2"])
+        await filter.process(await reader.read_and_process())
 
 
 if __name__ == '__main__':

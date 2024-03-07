@@ -1,5 +1,7 @@
 """Define some common filters."""
 
+from datetime import datetime
+
 from pandas import DataFrame
 
 from general import type_check
@@ -59,6 +61,52 @@ class BatchAverageFilter(Filter):
         # Change dtype back.
         df[df.columns[0]] = df[df.columns[0]].astype(data[data.columns[0]].dtype)
         
+        return df
+    
+
+class TimeFilter(Filter):
+    """Transform seperate time info in the DataFrame into datetime."""
+
+    def __init__(self, data_name: list[str], new_data_name: list[str] = None) -> None:
+        """Transform seperate time info in the DataFrame into datetime.
+        
+        :param data_name: list of data name that is not related to time in the df.
+        :param new_data_name: if you want to change the name of data in data_name.
+        """
+        self.data_name = data_name
+        self.new_data_name = new_data_name
+        super().__init__()
+
+    async def process(self, data: DataFrame) -> DataFrame:
+
+        new_data = {"Timestamp":[]}
+        if self.new_data_name is not None:
+            for name in self.new_data_name:
+                new_data[name] = []
+        else:
+            for name in self.data_name:
+                new_data[name] = []
+
+        for _, row in data.iterrows():
+            dt = datetime(
+                year=int(float(str(row.get("year")))),
+                month=int(float(str(row.get("month")))),
+                day=int(float(str(row.get("day")))),
+                hour=int(float(str(row.get("hour")))),
+                minute=int(float(str(row.get("minute")))),
+                second=int(float(str(row.get("second")))),
+                microsecond=int(float(str(row.get("millisecond"))))
+            )
+            new_data["Timestamp"].append(dt)
+            if self.new_data_name is not None:
+                for old_name, new_name in list(zip(self.data_name, self.new_data_name)):
+                    new_data[new_name].append(row.get(old_name))
+            else:
+                for name in self.data_name:
+                    new_data[name].append(row.get(name))
+
+        df = DataFrame(new_data)
+        await self.notify_exporters(df)
         return df
 
 
