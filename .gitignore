@@ -4,3 +4,6 @@ dockerfile
 scripts.py
 email_settings.json
 config
+env
+build
+app.spec

@@ -1,5 +1,7 @@
 # Update Log
 ## 2024-03-07
+* Wrote app.py.
+* First release.
 ## 2024-03-06
 * Wrote exporter factory and pipeline factory to help sensor manager creating sensor.
 * Wrote initialize and run method of scale manager and tested.

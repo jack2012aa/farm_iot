@@ -1,0 +1,56 @@
+{
+    "Feed scale left":{
+        "connection type": "RTU", 
+        "connection settings":{
+            "port": "COM2", 
+            "slave": 2
+        }, 
+        "length": 40, 
+        "duration": 0.2,
+        "waiting_time": 52.0, 
+        "belonging": ["Chang-Yu Huang"], 
+        "exporters": [{
+            "type": "WeeklyCsvExporter", 
+            "file_name": "raw_left", 
+            "dir": "data/"
+        }],
+        "pipelines":[
+            [
+                {
+                    "type": "StdFilter"
+                },
+                {
+                    "type": "BatchAverageFilter", 
+                    "exporters": [{"type": "WeeklyCsvExporter", "file_name": "std_avg_left", "dir": "data/"}]
+                }
+            ]
+        ]
+    }, 
+    "Feed scale right":{
+        "connection type": "RTU", 
+        "connection settings":{
+            "port": "COM2", 
+            "slave": 3
+        }, 
+        "length": 40, 
+        "duration": 0.2,
+        "waiting_time": 52.0, 
+        "belonging": ["Chang-Yu Huang"], 
+        "exporters": [{
+            "type": "WeeklyCsvExporter", 
+            "file_name": "raw_right", 
+            "dir": "data/"
+        }],
+        "pipelines":[
+            [
+                {
+                    "type": "StdFilter"
+                },
+                {
+                    "type": "BatchAverageFilter", 
+                    "exporters": [{"type": "WeeklyCsvExporter", "file_name": "std_avg_right", "dir": "data/"}]
+                }
+            ]
+        ]
+    }
+}

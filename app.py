@@ -16,17 +16,17 @@ async def main():
         encoding="utf-8",
         level=logging.INFO, 
         format="%(asctime)s, %(levelname)s, %(filename)s, %(funcName)s, %(message)s", 
-        datefmt="%m%d%Y %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     try:
         #Read config
-        if not os.path.isfile("config.json"):
+        if not os.path.isfile("config/config.json"):
             logging.error("config.json doesn't exist.")
             print("config.json doesn't exist.")
             raise FileNotFoundError
 
-        with open("/config/config.json") as file:
+        with open("config/config.json") as file:
             config = json.load(file)
 
         #Initialize managers

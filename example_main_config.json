@@ -1,0 +1,9 @@
+{
+    "gateway_managers":[
+        ["ModbusRTUGatewayManager", "config/rtu_config.json"]
+    ], 
+    "sensor_managers":[
+        ["FeedScaleManager", "config/scale_config.json"]
+    ], 
+    "email_config_path": "config/email_config.json"
+}

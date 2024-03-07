@@ -1,0 +1,9 @@
+{
+    "subject": "東盈IoT警報 Alarm email", 
+    "from": "Lab Email", 
+    "domain_mail_account": "someone@gmail.com", 
+    "domain_mail_password": "This is not the original password. Please google 'smtp gmail'.", 
+    "employeer_emails": {
+        "Chang-Yu Huang": "jack.mainwork@gmail.com"
+    }
+}
