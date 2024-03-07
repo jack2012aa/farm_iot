@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import logging
 from dataclasses import dataclass
 
 from pymodbus.client.serial import AsyncModbusSerialClient
@@ -135,12 +136,15 @@ class ModbusRTUGatewayManager(GatewayManager):
         
         type_check(path, "path", str)
         if not os.path.exists(path):
+            logging.error(f"Path \"{path}\" does not exist.")
+            logging.error("Fail to initialize RTU gateways.")
             print(f"Path \"{path}\" does not exist.")
             print("Fail to initialize RTU gateways.")
             raise FileNotFoundError
         with open(path) as file:
             settings: dict = json.load(file)
         for gateway_name, setting_dict in settings.items():
+            logging.info(f"Connecting to {gateway_name}...")
             print(f"Connecting to {gateway_name}...")
             try:
                 setting = RTUConnectionSettings(
@@ -152,11 +156,15 @@ class ModbusRTUGatewayManager(GatewayManager):
                     TIME_OUT=int(setting_dict["time_out"])
                 )
                 await self.create_connection(settings=setting)
+                logging.info("Connect successfully.")
                 print("Connect successfully.\n")
             except KeyError as ex:
+                logging.error(f"Missing key \"{ex.args[0]}\".")
+                logging.error(f"Connection fails.\n")
                 print(f"Missing key \"{ex.args[0]}\".")
                 print(f"Connection fails.\n")
                 continue
             except ConnectionError as ex:
+                logging.error(f"Connection fails.\n")
                 print(f"Connection fails.\n")
                 continue

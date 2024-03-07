@@ -1,7 +1,9 @@
 # Update Log
+## 2024-03-07
 ## 2024-03-06
 * Wrote exporter factory and pipeline factory to help sensor manager creating sensor.
 * Wrote initialize and run method of scale manager and tested.
+* Wrote send alarm email method.
 ## 2024-03-05
 * Wrote the initialize method of RTUGatewayManager and tested.
 ## 2024-03-04

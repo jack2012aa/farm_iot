@@ -5,6 +5,7 @@ from pandas import DataFrame
 
 from base.pipeline import Pipeline
 from base.export import DataGenerator
+from base.manage import Manager
 from general import type_check
 
 
@@ -77,4 +78,16 @@ class Sensor(DataGenerator, ABC):
 
     @abstractmethod
     async def is_alive(self) -> bool:
+        return NotImplemented
+    
+
+class SensorManager(Manager, ABC):
+    """An abstract class for sensor management."""
+
+    def __init__(self, email_settings: dict = None) -> None:
+        """An abstract class for sensor management."""
+        super().__init__(email_settings)
+
+    @abstractmethod
+    async def run(self) -> None:
         return NotImplemented

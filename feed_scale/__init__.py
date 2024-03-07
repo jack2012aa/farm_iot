@@ -1,13 +1,14 @@
 import os
 import json
 import asyncio
+import logging
 from abc import ABC
 
 from pymodbus.client.serial import AsyncModbusSerialClient
 
 from general import type_check
-from base.manage import Manager, Report
-from base.sensor import Sensor
+from base.manage import Report
+from base.sensor import Sensor, SensorManager
 from base.sensor.modbus import ModbusRTUBasedSensor
 from base.gateway import ModbusRTUGatewayManager
 from base.export import DataExporter
@@ -77,7 +78,7 @@ class FeedScaleRTUSensor(ModbusRTUBasedSensor, FeedScale):
         self._registers.append(reg)
 
 
-class FeedScaleManager(Manager):
+class FeedScaleManager(SensorManager):
     """A manager class to manage different type of feed scale sensor."""
 
     def __init__(self) -> None:
@@ -88,17 +89,25 @@ class FeedScaleManager(Manager):
     async def handle(self, report: Report) -> None:
         
         worker = report.sign
-        if isinstance(worker, FeedScale):
-            self.tasks[worker.NAME].cancel()
-            print(f"Stop reading from scale \"{worker.NAME}\" due to error \"{report.content}\".")
-        elif isinstance(worker, DataExporter):
-            print(f"Exporter \"{str(worker)}\" is broken due to \"{report.content}\".")
-            
+        if isinstance(report.content, BaseException):
+            if isinstance(worker, FeedScale):
+                self.tasks[worker.NAME].cancel()
+                logging.error(f"Stop reading from scale \"{worker.NAME}\" due to error \"{report.content}\".")
+                print(f"Stop reading from scale \"{worker.NAME}\" due to error \"{report.content}\".")
+                await self.send_alarm_email(worker.belonging, str(report.content))
+            elif isinstance(worker, DataExporter):
+                logging.error(f"Exporter \"{str(worker)}\" is broken due to \"{report.content}\".")
+                print(f"Exporter \"{str(worker)}\" is broken due to \"{report.content}\".")
+        #Unknown report.
+        else:
+            logging.warning(f"Something happen to {str(worker)}: {str(report.content)}.")
+            print(f"Something happen to {str(worker)}: {str(report.content)}.")
+    
         #Let other task do their job.
         await asyncio.sleep(0)
         return
 
-    async def initialize(self, path: str) -> None:
+    async def initialize(self, path: str, email_settings: dict = None) -> None:
         """Read settings from json file and connect to feed scales.
 
         The json setting file should look like this:
@@ -107,12 +116,12 @@ class FeedScaleManager(Manager):
                 "connection type": "RTU", 
                 "connection settings":{
                     "port":
-                    "slave:"
+                    "slave":
                 }, 
                 "length": 
                 "duration":
                 "waiting_time":
-                "belonging":
+                "belonging": []
                 "exporters":[]
                 "pipelines":[]
             }
@@ -122,9 +131,16 @@ class FeedScaleManager(Manager):
         :raises: ValueError, KeyError, TypeError, FileNotFoundError.
         """
         
+        if email_settings is not None:
+            self.email_settings = email_settings
+
         type_check(path, "path", str)
-        
+        logging.info("Begin to initialize feed scales")
+        print("Begin to initialize feed scales")
+
         if not os.path.isfile(path):
+            logging.error(f"Path \"{path}\" does not exist.")
+            logging.error("Fail to initialize feed scales.")
             print(f"Path \"{path}\" does not exist.")
             print("Fail to initialize feed scales.")
             raise FileNotFoundError
@@ -136,18 +152,23 @@ class FeedScaleManager(Manager):
         pipeline_factory = PipelineFactory()
         
         for scale_name, settings in configs.items():
+            logging.info(f"Connecting to scale \"{scale_name}\"")
+            print(f"Connecting to scale \"{scale_name}\"")
             try:
                 connection_type = settings["connection type"]
                 match connection_type:
                     case "RTU":
                         scale = self.__create_RTU_scale(scale_name, settings)
                     case _:
+                        logging.error(f"Not defined connection type {connection_type} for scale \"{scale_name}\".")
                         print(f"Not defined connection type {connection_type} for scale \"{scale_name}\".")
                         raise ValueError
             except KeyError as ex:
+                logging.error(f"Missing setting \"{ex.args[0]}\" when initializing scale \"{scale_name}\".")
                 print(f"Missing setting \"{ex.args[0]}\" when initializing scale \"{scale_name}\".")
                 raise ex
             if not await scale.is_alive():
+                logging.error(f"Cannot connect to scale \"{scale_name}\".")
                 print(f"Cannot connect to scale \"{scale_name}\".")
                 raise ConnectionError
             
@@ -171,6 +192,8 @@ class FeedScaleManager(Manager):
             self.scales.append(scale)
             task = asyncio.create_task(self.__create_reading_loop(scale))
             self.tasks[scale.NAME] = task
+            logging.info(f"Successfully connect to scale \"{scale_name}\".\n")
+            print(f"Successfully connect to scale \"{scale_name}\".\n")
                 
     def __create_RTU_scale(self, name: str, settings: dict) -> FeedScaleRTUSensor:
         """Create a rtu scale using settings."""
@@ -189,6 +212,7 @@ class FeedScaleManager(Manager):
         client = gateway_manager.get_connection(port)
         #Client should be connected before used.
         if client is None or not client.is_active():
+            logging.error(f"RTU gateway at port {port} is not connected.")
             print(f"RTU gateway at port {port} is not connected.")
             raise ConnectionError
         

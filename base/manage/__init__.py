@@ -48,13 +48,13 @@ class Manager(ABC):
         return NotImplemented
     
     @abstractmethod
-    async def initialize(self) -> None:
+    async def initialize(self, path: str) -> None:
         return NotImplemented
     
     async def send_alarm_email(self, recipients: tuple[str], content_text: str) -> None:
         """Send an alarm email to recipients' email address.
 
-        Invalid email will be ignored.
+        Invalid emails and recipients will be ignored.
         
         :param recipients: emails of recipients.
         :param content_text: content in the email.
@@ -71,7 +71,9 @@ class Manager(ABC):
         content["from"] = self.email_settings["from"]
         emails = []
         for recipient in recipients:
-            emails.append(self.email_settings["employeer_emails"][recipient])
+            address = self.email_settings["employeer_emails"].get(recipient)
+            if address is not None:
+                emails.append(address)
         content["to"] = ", ".join(emails)
         content.attach(MIMEText(content_text))
         with smtplib.SMTP_SSL(host="smtp.gmail.com", port=465, local_hostname="[127.0.0.1]") as smtp:
