@@ -1,20 +1,23 @@
 import os
+import asyncio
 import unittest
 from datetime import datetime
 
 import pandas as pd
 
-from base.export.common_exporters import WeeklyCsvExporter, ExporterFactory
+from base.export.common_exporters import *
 
 
 class MyTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         self.exporter = None
+        self.pathes = []
 
     def tearDown(self):
         try:
-            os.remove(self.exporter._generate_path())
+            for path in self.pathes:
+                os.remove(path)
         except:
             pass
         self.exporter = None
@@ -28,6 +31,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
             )
 
         self.exporter = WeeklyCsvExporter("test")
+        self.pathes.append(self.exporter._generate_path())
         # Initialize test data
         df = pd.DataFrame(data={"datetime": [datetime.now()], "weight": [65]})
 
@@ -61,6 +65,28 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
             
         with self.assertRaises(KeyError):
             factory.create({"type": "WeeklyCsvExporter"})
+
+    async def test_scatter_plot_exporter(self):
+        
+        exporter = ScatterPlotExporter(
+            os.path.join(os.path.curdir, "test/base/export")
+        )
+        self.pathes.append(os.path.join(os.path.curdir, "test/base/export/values1.jpg"))
+        self.pathes.append(os.path.join(os.path.curdir, "test/base/export/values2.jpg"))
+        timestamp = []
+        for _ in range(5):
+            timestamp.append(datetime.now())
+            await asyncio.sleep(0.5)
+        values1 = [1, 2, 3, 4, 5]
+        values2 = [22.3, 114.514, 1919.810, 2.14, 3.14]
+        df = pd.DataFrame({"Timestamp": timestamp, "values1": values1, "values2": values2})
+        await exporter.export(df)
+        self.assertTrue(os.path.isfile(
+            os.path.join(os.path.curdir, "test/base/export/values1.jpg")
+        ))
+        self.assertTrue(os.path.isfile(
+            os.path.join(os.path.curdir, "test/base/export/values2.jpg")
+        ))
 
 
 if __name__ == '__main__':

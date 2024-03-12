@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime
 
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from general import type_check
 from base.manage import Report
@@ -15,7 +16,8 @@ from base.export import DataExporter
 
 __all__ = [
     "WeeklyCsvExporter", 
-    "ExporterFactory"
+    "ExporterFactory", 
+    "ScatterPlotExporter"
 ]
 
 
@@ -131,6 +133,41 @@ class RaiseExporter(DataExporter):
 
     async def export(self, data: pd.DataFrame) -> None:
         await self.notify_manager(Report(sign=self, content=AssertionError))
+        return None
+    
+    
+class ScatterPlotExporter(DataExporter):
+    """Plot a scatter plot using a time series.
+    
+    If the dataframe contains more than 3 columns, says n, then n - 2 columns 
+    will be generated.
+    """
+    
+    def __init__(self, save_directory: str = os.path.curdir) -> None:
+        """Plot a scatter plot using a time series.
+        
+        If the dataframe contains more than 3 columns, says n, then n - 2 columns 
+        will be generated.
+        :param save_directory: a directory to save the plot.
+        """
+        pd.DataFrame()
+        type_check(save_directory, "save_directory", str)
+        self.__SAVE_DIRECTORY = save_directory
+        super().__init__()
+        
+    async def export(self, data: pd.DataFrame) -> None:
+        
+        type_check(data, "data", pd.DataFrame)
+        for i in range(data.shape[1]):
+            if i == 0:
+                continue
+            timestamp = data.iloc[:, 0]
+            values = data.iloc[:, i]
+            output_dataframe = pd.concat([timestamp, values], axis=1)
+            output_dataframe.plot.scatter(x=0, y=1, s=10)
+            plt.savefig(os.path.join(self.__SAVE_DIRECTORY, f"{values.name}.jpg"))
+            await asyncio.sleep(0)
+            
         return None
 
 

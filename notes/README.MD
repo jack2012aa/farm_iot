@@ -1,6 +1,7 @@
 # Update Log
 ## 2024-03-12
 * Add new filters.
+* Add a plot exporter.
 ## 2024-03-07
 * Wrote app.py.
 * First release.
