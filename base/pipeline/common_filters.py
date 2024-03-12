@@ -1,8 +1,14 @@
 """Define some common filters."""
 
+import asyncio
+import logging
+from abc import ABC
 from datetime import datetime
+from collections import deque
+from statistics import median, stdev
 
-from pandas import DataFrame
+from numpy import nan
+from pandas import DataFrame, Series
 
 from general import type_check
 from base.manage import Manager
@@ -108,6 +114,195 @@ class TimeFilter(Filter):
         df = DataFrame(new_data)
         await self.notify_exporters(df)
         return df
+    
+    
+class FIFOFilter(Filter, ABC):
+    """An abstract class that keeps a dataframe and maintains it in a fix 
+    length based on first in first out. It can be used to implement filters 
+    related to moving average or anything similar.
+    
+    Remember to initialize the dataframe attribute when the first dataframe 
+    is read.
+    """
+    
+    def __init__(self, length: int) -> None:
+        """An abstract class that keeps a dataframe and maintains it in a fix 
+        length based on first in first out. It can be used to implement filters 
+        related to moving average or anything similar.
+
+        Remember to initialize the dataframe attribute when the first dataframe 
+        is read.
+        
+        :param length: the maximum number of rows of the kept dataframe.
+        :raises: TypeError.
+        """
+        super().__init__()
+        try:
+            type_check(length, "length", int)
+        except TypeError:
+            print("Fail to initialize FIFOFilter because parameter \"length\" is not integer.")
+            logging.error("Fail to initialize FIFOFilter because parameter \"length\" is not integer.")
+            raise
+        self._MAX_LENGTH = length
+        self._data = None
+        
+    def initialize_data(self, dataframe: DataFrame) -> None:
+        """Initialize stored data. If the dataframe is larger than MAX_LENGTH 
+        some data will lost.
+        
+        :param dataframe: DataFrame to be stored.
+        """
+
+        type_check(dataframe, "dataframe", DataFrame)
+        #Deque is faster.
+        self._data = {}
+        for key in dataframe.keys():
+            self._data[key] = deque([], maxlen=self._MAX_LENGTH)
+        
+    def _replace_first_n(self, data: DataFrame) -> None:
+        """Replace the first n rows in the kept dataframe with new data using 
+        FIFO.
+        
+        :param data: new rows to be inserted.
+        :raises: TypeError, KeyError.
+        """
+        
+        type_check(data, "data", DataFrame)
+        for key in data.keys():
+            #Using df.to_dict() will convert datetime to timestamp.
+            #So convert to Series first.
+            series = data.get(key)
+            new_rows = series.to_list()
+            for value in new_rows:
+                self._data[key].append(value)
+                
+    def _generate_dataframe(self) -> DataFrame | None:
+        """Generate a dataframe using stored data. Return None if no data 
+        exists.
+        """
+        
+        if self._data is None:
+            return None
+        
+        dict_series = {}
+        for key, queue in self._data.items():
+            dict_series[key] = Series(queue)
+        return DataFrame(dict_series)
+    
+    
+class MovingAverageFilter(FIFOFilter):
+    """Convert data i to a moving average of former n records (with i)."""
+    
+    def __init__(self, length: int) -> None:
+        """Convert data i to a moving average of former n records (with i).
+        
+        :param length: The number of records to calculate the moving average.
+        """
+        super().__init__(length)
+        
+    async def process(self, data: DataFrame) -> DataFrame:
+        
+        if self._data is None:
+            self.initialize_data(data)
+        
+        result = {}
+        
+        #Assume that column 0 is timestamp. Skip column 0.
+        for i in range(data.shape[1]):
+            key = data.keys()[i]
+            if i == 0:
+                time = data.get(key).to_list()
+                result[key] = time
+                continue
+            moving_averages = []
+            values = data.get(key)
+            for value in values:
+                self._data[key].append(value)
+                moving_averages.append(sum(self._data[key]) / len(self._data[key]))
+            result[key] = moving_averages
+            
+        await asyncio.sleep(0)
+        return DataFrame(result)
+    
+    
+class MovingMedianFilter(FIFOFilter):
+    """Convert data i to a median of former n records (with i)."""
+    
+    def __init__(self, length: int) -> None:
+        """Convert data i to a median of former n records (with i).
+        
+        :param length: The number of records to calculate the median.
+        """
+        
+        super().__init__(length)
+        
+    async def process(self, data: DataFrame) -> DataFrame:
+        
+        if self._data is None:
+            self.initialize_data(data)
+        
+        result = {}
+        
+        #Assume that column 0 is timestamp. Skip column 0.
+        for i in range(data.shape[1]):
+            key = data.keys()[i]
+            if i == 0:
+                time = data.get(key).to_list()
+                result[key] = time
+                continue
+            medians = []
+            values = data.get(key)
+            for value in values:
+                self._data[key].append(value)
+                medians.append(median(self._data[key]))
+            result[key] = medians
+            
+        await asyncio.sleep(0)
+        return DataFrame(result)
+
+
+class BatchStdevRangeFilter(Filter):
+    """Remove records out of n standard deviation in a batch.
+    
+    For example, if avg = 10, std = 2, n = 2, then data > 14 and data < 6 will 
+    be removed from the batch.
+    Standard deviation and average are calculated using the batch data.
+    """
+    
+    def __init__(self, n: int) -> None:
+        """Remove records out of n standard deviation in a batch.
+    
+        For example, if avg = 10, std = 2, n = 2, then data > 14 and data < 6 will 
+        be removed from the batch.
+        Standard deviation and average are calculated using the batch data.
+        
+        :param n: the number of standard deviation of range.
+        """
+        super().__init__()
+        type_check(n, "n", int)
+        self.__N = n
+        
+    async def process(self, data: DataFrame) -> DataFrame:
+        
+        type_check(data, "data", DataFrame)
+        for i in range(data.shape[1]):
+            key = data.keys()[i]
+            if i == 0:
+                continue
+            records = data.get(key).to_list()
+            average = sum(records) / len(records)
+            std = stdev(records)
+            upper_bound = average + self.__N * std
+            lower_bound = average - self.__N * std
+            for j in range(len(records)):
+                #Get each record from dataframe.
+                if data.iloc[j, i] > upper_bound or data.iloc[j, i] < lower_bound:
+                    data.iloc[j, i] = nan
+                    
+        #Remove rows that are all Nan in each column except timestamp.
+        data.dropna(thresh=data.shape[1] - 1, inplace=True)
+        await asyncio.sleep(0)
+        return data
 
 
 class PipelineFactory():
@@ -149,6 +344,8 @@ class PipelineFactory():
                         filter = StdFilter()
                     case "BatchAverageFilter":
                         filter = BatchAverageFilter()
+                    case "MovingAverageFilter":
+                        filter = MovingAverageFilter(filter_setting["max_length"])
                     case _:
                         print(f"Filter type {filter_setting["type"]} does not exist.")
                         raise ValueError
