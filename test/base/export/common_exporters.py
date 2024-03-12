@@ -76,7 +76,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         timestamp = []
         for _ in range(5):
             timestamp.append(datetime.now())
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(2)
         values1 = [1, 2, 3, 4, 5]
         values2 = [22.3, 114.514, 1919.810, 2.14, 3.14]
         df = pd.DataFrame({"Timestamp": timestamp, "values1": values1, "values2": values2})
@@ -87,6 +87,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(os.path.isfile(
             os.path.join(os.path.curdir, "test/base/export/values2.jpg")
         ))
+        input("WAIT")
 
 
 if __name__ == '__main__':

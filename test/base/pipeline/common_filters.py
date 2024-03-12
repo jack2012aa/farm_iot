@@ -156,6 +156,40 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
             df, 
             check_dtype=False
         )
+        
+    async def test_moving_stdev_range_filter(self):
+        
+        filter = MovingStdevRangeFilter(1, 3)
+        data = {
+            "Timestamp": [datetime.now(), datetime.now(), datetime.now(), datetime.now(), datetime.now(), datetime.now()],
+            "values1": [1, 2, 2, 4, 5, 100],
+            "values2": [11, 22, 33, 44, 55, 1000]
+        }
+        df = await filter.process(DataFrame(data))
+        data["Timestamp"].pop()
+        data["values1"] = [1, 2, 2, None, 5]
+        data["values2"] = [11, 22, 33, 44, 55]
+        print(df)
+        pd.testing.assert_frame_equal(
+            df, 
+            DataFrame(data),
+            check_dtype=False
+        )
+        filter = MovingStdevRangeFilter(1, 3)
+        data = {
+            "Timestamp": [datetime.now(), datetime.now(), datetime.now(), datetime.now(), datetime.now(), datetime.now()],
+            "values1": [1, 2, 2, 100, 5, 100],
+            "values2": [11, 22, 33, 44, 55, 1000]
+        }
+        df = await filter.process(DataFrame(data))
+        data["values1"] = [1, 2, 2, None, 5, 100]
+        data["values2"] = [11, 22, 33, 44, 55, None]
+        print(df)
+        pd.testing.assert_frame_equal(
+            DataFrame(data), 
+            df, 
+            check_dtype=False
+        )
             
         
 if __name__ == '__main__':

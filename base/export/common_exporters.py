@@ -8,6 +8,7 @@ from datetime import datetime
 
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.dates import ConciseDateFormatter, AutoDateLocator
 
 from general import type_check
 from base.manage import Report
@@ -143,7 +144,11 @@ class ScatterPlotExporter(DataExporter):
     will be generated.
     """
     
-    def __init__(self, save_directory: str = os.path.curdir) -> None:
+    def __init__(
+            self, 
+            save_directory: str = os.path.curdir, 
+            name_list: list[str] = None
+        ) -> None:
         """Plot a scatter plot using a time series.
         
         If the dataframe contains more than 3 columns, says n, then n - 2 columns 
@@ -153,6 +158,7 @@ class ScatterPlotExporter(DataExporter):
         pd.DataFrame()
         type_check(save_directory, "save_directory", str)
         self.__SAVE_DIRECTORY = save_directory
+        self.__name_list = name_list
         super().__init__()
         
     async def export(self, data: pd.DataFrame) -> None:
@@ -164,8 +170,16 @@ class ScatterPlotExporter(DataExporter):
             timestamp = data.iloc[:, 0]
             values = data.iloc[:, i]
             output_dataframe = pd.concat([timestamp, values], axis=1)
-            output_dataframe.plot.scatter(x=0, y=1, s=10)
-            plt.savefig(os.path.join(self.__SAVE_DIRECTORY, f"{values.name}.jpg"))
+            plt.gca().xaxis.set_major_formatter(
+                ConciseDateFormatter(
+                    AutoDateLocator
+                )
+            )
+            output_dataframe.plot.scatter(x=0, y=1, s=10, figsize=(20, 5))
+            if self.__name_list is not None:
+                plt.savefig(os.path.join(self.__SAVE_DIRECTORY, f"{self.__name_list[i]}.jpg"))
+            else:
+                plt.savefig(os.path.join(self.__SAVE_DIRECTORY, f"{values.name}.jpg"))
             await asyncio.sleep(0)
             
         return None

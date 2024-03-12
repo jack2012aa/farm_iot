@@ -7,3 +7,4 @@ config
 env
 build
 app.spec
+*.jpg

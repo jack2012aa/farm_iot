@@ -37,7 +37,7 @@ class CsvSensor(Sensor):
             nrows=self._LENGTH_OF_A_BATCH
         )
         self.skip_rows += self._LENGTH_OF_A_BATCH
-        asyncio.gather(
+        await asyncio.gather(
             self.notify_exporters(df), 
             self.notify_pipelines(df)
         )
