@@ -24,7 +24,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         for i in range(6):
             self.assertTrue(16.0 <= data.iloc[i, 1] <= 54.0)
 
-    async def test_batch_filter(self):
+    async def test_batch_average_filter(self):
 
         n = datetime.now()
         data = DataFrame({"time":[datetime.now(), n , n , n, n], "value":[1.0 ,2.0 ,3.0 ,4.0 ,5.0]})

@@ -31,17 +31,20 @@ class StdFilter(Filter):
         """Compute the standard deviation of data and replace out-of-range data to average +- one std."""
 
         type_check(data, "data", DataFrame)
-        standard_deviation = data.std()
-        average = data.mean()
 
-        for i in range(1, data.shape[1]):
-            # Define a function here to get std, avg and i.
+        for i in range(data.shape[1]):
+            if i == 0:
+                continue
+            values = data.iloc[:, i].dropna().to_list()
+            standard_deviation = stdev(values)
+            average = sum(values) / len(values)
+
             def threshold(value):
-                value = min(value, average.iloc[i] + standard_deviation.iloc[i])
-                value = max(value, average.iloc[i] - standard_deviation.iloc[i])
+                value = min(value, average + standard_deviation)
+                value = max(value, average - standard_deviation)
                 return value
-            data.iloc[:, i] = data.iloc[:, i].map(threshold)
 
+            data.iloc[:, i] = data.iloc[:, i].map(threshold)
         return data
 
 
@@ -62,13 +65,18 @@ class BatchAverageFilter(Filter):
         as the last timestamp in original data. """
 
         type_check(data, "data", DataFrame)
-        average = data.mean()
-        average.iloc[0] = data.iloc[data.shape[0] - 1, 0]
-        df = average.to_frame().T
-        # Change dtype back.
-        df[df.columns[0]] = df[df.columns[0]].astype(data[data.columns[0]].dtype)
+        output_data = {}
+        for i in range(data.shape[1]):
+            key = data.keys()[i]
+            output_data[key] = []
+            if i == 0:
+                output_data[key].append(data.iloc[-1, i])
+                continue
+            values = data.get(key).dropna().to_list()
+            average = sum(values) / len(values)
+            output_data[key] = [average]
         
-        return df
+        return DataFrame(output_data)
     
 
 class TimeFilter(Filter):
@@ -221,7 +229,7 @@ class MovingAverageFilter(FIFOFilter):
                 result[key] = time
                 continue
             moving_averages = []
-            values = data.get(key)
+            values = data.get(key).dropna().to_list()
             for value in values:
                 self._data[key].append(value)
                 moving_averages.append(sum(self._data[key]) / len(self._data[key]))
@@ -266,7 +274,7 @@ class MovingMedianFilter(FIFOFilter):
                 result[key] = time
                 continue
             medians = []
-            values = data.get(key)
+            values = data.get(key).dropna().to_list()
             for value in values:
                 self._data[key].append(value)
                 medians.append(median(self._data[key]))
@@ -313,7 +321,7 @@ class BatchStdevRangeFilter(Filter):
             key = data.keys()[i]
             if i == 0:
                 continue
-            records = data.get(key).to_list()
+            records = data.get(key).dropna().to_list()
             average = sum(records) / len(records)
             std = stdev(records)
             upper_bound = average + self.__N * std
@@ -390,6 +398,69 @@ class MovingStdevRangeFilter(FIFOFilter):
         data.dropna(thresh=data.shape[1] - 1, inplace=True)
         await asyncio.sleep(0)
         return data
+    
+
+class AccumulateFilter(Filter):
+    """Accumulate records until the dataframe has at most n rows.
+    
+    This filter is used with batch filters. For example, if you have a batch 
+    average filter and then an accumulate filter, then the accumulate filter 
+    can generate a new 'batch' of data. 
+
+    Example:
+    If filter.process(data) is called and 
+    1. Rows of data + rows of historical data in this filter object < n, then 
+    the rows of returned data will be smaller than n.
+    2. Rows of data + rows of historical data > n, then the rows of returned 
+    data will be exactly n (historical data and front data). Data that doesn't 
+    contain in this batch will be saved.
+    """
+
+    def __init__(self, length: int) -> None:
+        """Accumulate records until the dataframe has at most n rows.
+    
+        This filter is used with batch filters. For example, if you have a batch 
+        average filter and then an accumulate filter, then the accumulate filter 
+        can generate a new 'batch' of data. 
+
+        Example:
+        If filter.process(data) is called and 
+        1. Rows of data + rows of historical data in this filter object < n, then 
+        the rows of returned data will be smaller than n.
+        2. Rows of data + rows of historical data > n and rows of data < n, then 
+        the rows of returned data will be exactly n (historical data and front data). 
+        Data that doesn't contain in this batch will be saved.
+        3. Rows of data > n and rows of data + rows of historical data > 2n, then it 
+        will be return with historical data. 
+
+        :param length: the maximum number of rows to be accumulated.
+        """
+        super().__init__()
+        self.__MAX_LENGTH = length
+        self.__data = []
+
+    async def process(self, data: DataFrame) -> DataFrame:
+        
+        type_check(data, "data", DataFrame)
+
+        result_df = None
+        columns = data.keys()
+        if data.shape[0] + len(self.__data) >= 2 * self.__MAX_LENGTH:
+            for _, series in data.iterrows():
+                row = series.to_list()
+                self.__data.append(row)
+                result_df = DataFrame(self.__data, columns=columns)
+                self.__data = []
+        else:
+            for _, series in data.iterrows():
+                row = series.to_list()
+                self.__data.append(row)
+                if len(self.__data) == self.__MAX_LENGTH:
+                    result_df = DataFrame(self.__data, columns=columns)
+                    self.__data = []
+        if result_df is None:
+            result_df = DataFrame(self.__data, columns=columns)
+        return result_df
 
 
 class PipelineFactory():

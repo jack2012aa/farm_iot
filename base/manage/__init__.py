@@ -85,6 +85,20 @@ class Manager(ABC):
             smtp.send_message(content)
 
 
+class SimpleManager(Manager):
+    """A simple manager which print the report."""
+
+    def __init__(self, email_settings: dict = None) -> None:
+        super().__init__(email_settings)
+
+    async def initialize(self, path: str) -> None:
+        return None
+    
+    async def handle(self, report: Report) -> None:
+        print(type(report.sign), report.content)
+        return None
+
+
 class Worker(ABC):
 
     def __init__(self) -> None:

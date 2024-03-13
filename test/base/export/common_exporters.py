@@ -69,7 +69,7 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_scatter_plot_exporter(self):
         
         exporter = ScatterPlotExporter(
-            os.path.join(os.path.curdir, "test/base/export")
+            "test/base/export"
         )
         self.pathes.append(os.path.join(os.path.curdir, "test/base/export/values1.jpg"))
         self.pathes.append(os.path.join(os.path.curdir, "test/base/export/values2.jpg"))

@@ -5,7 +5,7 @@ from pandas import DataFrame
 
 from base.pipeline import Pipeline
 from base.export import DataGenerator
-from base.manage import Manager
+from base.manage import Manager, Report
 from general import type_check
 
 
@@ -74,7 +74,7 @@ class Sensor(DataGenerator, ABC):
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
             if isinstance(result, BaseException):
-                await self.notify_manager(sign=self, content=result)
+                await self.notify_manager(report=Report(sign=self, content=result))
 
     @abstractmethod
     async def is_alive(self) -> bool:

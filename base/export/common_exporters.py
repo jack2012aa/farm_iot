@@ -147,39 +147,60 @@ class ScatterPlotExporter(DataExporter):
     def __init__(
             self, 
             save_directory: str = os.path.curdir, 
-            name_list: list[str] = None
+            name_list: list[str] = None, 
+            threshold: int = 0
         ) -> None:
         """Plot a scatter plot using a time series.
         
         If the dataframe contains more than 3 columns, says n, then n - 2 columns 
         will be generated.
         :param save_directory: a directory to save the plot.
+        :param name_list: a list of name of exported csv. If not provided, the 
+        name is its column name.
+        :param threshold: if the rows of data is lower than threshold, then it 
+        will not be plotted.
         """
         pd.DataFrame()
         type_check(save_directory, "save_directory", str)
+        type_check(threshold, "threshold", int)
         self.__SAVE_DIRECTORY = save_directory
         self.__name_list = name_list
+        self.__THRESHOLD = threshold
         super().__init__()
         
     async def export(self, data: pd.DataFrame) -> None:
         
         type_check(data, "data", pd.DataFrame)
+
+        if self.__THRESHOLD > data.shape[0]:
+            return
+
         for i in range(data.shape[1]):
             if i == 0:
+                timestamp = data.iloc[:, 0].to_list()
                 continue
-            timestamp = data.iloc[:, 0]
-            values = data.iloc[:, i]
-            output_dataframe = pd.concat([timestamp, values], axis=1)
-            plt.gca().xaxis.set_major_formatter(
-                ConciseDateFormatter(
-                    AutoDateLocator
-                )
-            )
-            output_dataframe.plot.scatter(x=0, y=1, s=10, figsize=(20, 5))
+            values = data.iloc[:, i].to_list()
+            plt.figure(figsize=(30, 6))
+            plt.scatter(timestamp, values)
+            plt.title(data.keys()[i])
+            plt.xlabel(data.keys()[0])
+            plt.ylabel(data.keys()[i])
+            locator = AutoDateLocator(minticks=10, maxticks=20)
+            plt.gca().xaxis.set_major_locator(locator)
+            plt.gca().xaxis.set_major_formatter(ConciseDateFormatter(locator))
+            plt.xticks(rotation=45)
             if self.__name_list is not None:
-                plt.savefig(os.path.join(self.__SAVE_DIRECTORY, f"{self.__name_list[i]}.jpg"))
+                file_name = f"{self.__name_list[i]}.jpg"
             else:
-                plt.savefig(os.path.join(self.__SAVE_DIRECTORY, f"{values.name}.jpg"))
+                file_name = f"{data.keys()[i]}.jpg"
+            if os.path.isfile(os.path.join(self.__SAVE_DIRECTORY, file_name)):
+                i = 0
+                while os.path.isfile(os.path.join(self.__SAVE_DIRECTORY, f"{i}_{file_name}")):
+                    i += 1
+                file_name = f"{i}_{file_name}"
+
+            plt.savefig(os.path.join(self.__SAVE_DIRECTORY, file_name))
+            plt.close()
             await asyncio.sleep(0)
             
         return None
