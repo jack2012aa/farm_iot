@@ -4,7 +4,7 @@ import asyncio
 from concurrent.futures import ProcessPoolExecutor
 
 from base.pipeline import Pipeline
-from base.pipeline.common_filters import *
+from base.pipeline.time_series_filters import *
 from base.sensor.csv import CsvSensor
 from base.manage import SimpleManager
 from base.export.common_exporters import ScatterPlotExporter

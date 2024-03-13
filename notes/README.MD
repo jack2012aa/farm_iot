@@ -2,6 +2,7 @@
 ## 2024-03-13
 * Tested on how to process weight data. Using BatchAvg, MovingAvg and Std seems good, unrelated with there order. 
 It is impossible to verify there correctness. This will be done when calculating everyday feed consuming.
+* Create more thorough test of time series filters.
 ## 2024-03-12
 * Add new filters.
 * Add a plot exporter.

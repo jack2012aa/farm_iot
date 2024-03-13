@@ -1,15 +1,24 @@
-"""Define some common filters."""
+"""Define filters used for time series. The first column of the dataframe 
+have to be Timestamp.
+"""
 
-import asyncio
+__all__ = [
+    "BatchStdevFilter", 
+    "BatchAverageFilter", 
+    "TimeFilter", 
+    "FIFOFilter", 
+    "MovingAverageFilter", 
+    "MovingMedianFilter", 
+    "MovingStdevFilter"
+]
+
 import logging
 from abc import ABC
 from datetime import datetime
 from collections import deque
-from statistics import median, stdev
+from statistics import median, stdev, mean
 
-from tqdm import tqdm
-from numpy import nan
-from pandas import DataFrame, Series
+from pandas import DataFrame, Series, isna
 
 from general import type_check
 from base.manage import Manager
@@ -17,34 +26,64 @@ from base.pipeline import Filter, Pipeline
 from base.export.common_exporters import ExporterFactory
 
 
-class StdFilter(Filter):
-    """Compute the standard deviation of data and replace out-of-range data to average +- one std."""
+class BatchStdevFilter(Filter):
+    """Compute the standard deviation of data and replace out-of-range data to 
+    average +- n * std.
+    """
 
-    def __init__(self) -> None:
-        """Compute the standard deviation of data and replace out-of-range data to average +- one std."""
+    def __init__(self, n: float = 1, remove: bool = False) -> None:
+        """Compute the standard deviation of data and replace out-of-range data 
+        to average +- n * std.
+        
+        If the length of data is less than 3, it won't be processed since 
+        calculating standard deviation needs at least 3 data.
+
+        ## Example
+        * n = 1, average = 10, stdev = 2, remove = False. If 8 <= value <= 12, 
+        it will be kept same; else, it will be set to 8 or 12.
+        * n = 2, average = 10, stdev = 2, remove = True. If 6 <= value <= 14, 
+        it will be kept same; else, it will be set to Nan.
+        
+        :param n: the range of standard deviation.
+        :param remove: set true to remove out of range value from the dataframe.
+        """
         super().__init__()
+        n = float(n)
+        type_check(remove, "remove", bool)
+        self.__N = n
+        self.__REMOVE = remove
 
     def __str__(self) -> str:
-        return "StdFilter. Range: [-avg + std, +avg + std]"
+        return f"BatchStdFilter (n={self.__N}, remove={self.__REMOVE})."
 
     async def process(self, data: DataFrame) -> DataFrame:
-        """Compute the standard deviation of data and replace out-of-range data to average +- one std."""
 
         type_check(data, "data", DataFrame)
 
+        raw_data = data.copy()
         for i in range(data.shape[1]):
             if i == 0:
                 continue
             values = data.iloc[:, i].dropna().to_list()
+            if len(values) <= 2:
+                logging.warning("Data is too short to calculate standard deviation.")
+                return raw_data
             standard_deviation = stdev(values)
-            average = sum(values) / len(values)
+            average = mean(values)
 
-            def threshold(value):
-                value = min(value, average + standard_deviation)
-                value = max(value, average - standard_deviation)
-                return value
+            for j in range(data.shape[0]):
+                lower_bound = average - self.__N * standard_deviation
+                upper_bound = average + self.__N * standard_deviation
+                #If value in range.
+                if  lower_bound <= data.iloc[j, i] <= upper_bound:
+                    continue
+                if self.__REMOVE:
+                    data.iloc[j, i] = None
+                elif data.iloc[j, i] < lower_bound:
+                    data.iloc[j, i] = lower_bound
+                else:
+                    data.iloc[j, i] = upper_bound
 
-            data.iloc[:, i] = data.iloc[:, i].map(threshold)
         return data
 
 
@@ -73,8 +112,10 @@ class BatchAverageFilter(Filter):
                 output_data[key].append(data.iloc[-1, i])
                 continue
             values = data.get(key).dropna().to_list()
-            average = sum(values) / len(values)
-            output_data[key] = [average]
+            if len(values) == 0:
+                output_data[key] = [None]
+                continue
+            output_data[key] = [mean(values)]
         
         return DataFrame(output_data)
     
@@ -204,6 +245,10 @@ class MovingAverageFilter(FIFOFilter):
     
     def __init__(self, length: int) -> None:
         """Convert data i to a moving average of former n records (with i).
+
+        If meeting a nan value in the data: 
+        1. Result will be nan if there is no previous data.
+        2. Result will be the average of previous data. This nan is ignored.
         
         :param length: The number of records to calculate the moving average.
         """
@@ -215,13 +260,6 @@ class MovingAverageFilter(FIFOFilter):
             self.initialize_data(data)
         
         result = {}
-        #Set progress bar.
-        if data.shape[0] > 3000:
-            progress_bar = tqdm(total=data.shape[0] * (data.shape[1] - 1), desc="Moving Average Filter")
-        else:
-            progress_bar = None
-            
-        #Assume that column 0 is timestamp. Skip column 0.
         for i in range(data.shape[1]):
             key = data.keys()[i]
             if i == 0:
@@ -229,17 +267,18 @@ class MovingAverageFilter(FIFOFilter):
                 result[key] = time
                 continue
             moving_averages = []
-            values = data.get(key).dropna().to_list()
+            values = data.get(key).to_list()
             for value in values:
+                if isna(value):
+                    if len(self._data[key]) == 0:
+                        moving_averages.append(None)
+                    else:
+                        moving_averages.append(mean(self._data[key]))
+                    continue
                 self._data[key].append(value)
-                moving_averages.append(sum(self._data[key]) / len(self._data[key]))
-                if progress_bar is not None:
-                    progress_bar.update(1)
+                moving_averages.append(mean(self._data[key]))
             result[key] = moving_averages
-        if progress_bar is not None:
-            progress_bar.close()
 
-        await asyncio.sleep(0)
         return DataFrame(result)
     
     
@@ -258,147 +297,96 @@ class MovingMedianFilter(FIFOFilter):
         
         if self._data is None:
             self.initialize_data(data)
-        
+
         result = {}
-        
-        if data.shape[0] > 3000:
-            progress_bar = tqdm(total=data.shape[0] * (data.shape[1] - 1), desc="Moving Median Filter")
-        else:
-            progress_bar = None
-        
-        #Assume that column 0 is timestamp. Skip column 0.
         for i in range(data.shape[1]):
             key = data.keys()[i]
             if i == 0:
                 time = data.get(key).to_list()
                 result[key] = time
                 continue
-            medians = []
-            values = data.get(key).dropna().to_list()
+            moving_medians = []
+            values = data.get(key).to_list()
             for value in values:
+                if isna(value):
+                    if len(self._data[key]) == 0:
+                        moving_medians.append(None)
+                    else:
+                        moving_medians.append(median(self._data[key]))
+                    continue
                 self._data[key].append(value)
-                medians.append(median(self._data[key]))
-            result[key] = medians
-            if progress_bar is not None:
-                progress_bar.update(1)
-        if progress_bar is not None:
-            progress_bar.close()
-            
-        await asyncio.sleep(0)
+                moving_medians.append(median(self._data[key]))
+            result[key] = moving_medians
+
         return DataFrame(result)
 
 
-class BatchStdevRangeFilter(Filter):
-    """Remove records out of n standard deviation in a batch.
-    
-    For example, if avg = 10, std = 2, n = 2, then data > 14 and data < 6 will 
-    be removed from the batch.
-    Standard deviation and average are calculated using the batch data.
-    """
-    
-    def __init__(self, n: int | float) -> None:
-        """Remove records out of n standard deviation in a batch.
-    
-        For example, if avg = 10, std = 2, n = 2, then data > 14 and data < 6 will 
-        be removed from the batch.
-        Standard deviation and average are calculated using the batch data.
-        
-        :param n: the number of standard deviation of range.
-        """
-        super().__init__()
-        self.__N = n
-        
-    async def process(self, data: DataFrame) -> DataFrame:
-        
-        type_check(data, "data", DataFrame)
-        
-        if data.shape[0] > 3000:
-            progress_bar = tqdm(total=data.size - data.shape[0], desc="Batch stdev Range Filter")
-        else:
-            progress_bar = None
-            
-        for i in range(data.shape[1]):
-            key = data.keys()[i]
-            if i == 0:
-                continue
-            records = data.get(key).dropna().to_list()
-            average = sum(records) / len(records)
-            std = stdev(records)
-            upper_bound = average + self.__N * std
-            lower_bound = average - self.__N * std
-            for j in range(len(records)):
-                #Get each record from dataframe.
-                if data.iloc[j, i] > upper_bound or data.iloc[j, i] < lower_bound:
-                    data.iloc[j, i] = nan
-            if progress_bar is not None:
-                progress_bar.update(1)
-        if progress_bar is not None:
-            progress_bar.close()
-                    
-        #Remove rows that are all Nan in each column except timestamp.
-        data.dropna(thresh=data.shape[1] - 1, inplace=True)
-        await asyncio.sleep(0)
-        return data
-
-
-class MovingStdevRangeFilter(FIFOFilter):
+class MovingStdevFilter(FIFOFilter):
     """Remove records out of n standard deviation in a range of records.
     
     For example, if avg = 10, std = 2, n = 2, then data > 14 and data < 6 will 
     be removed from the batch.
     Standard deviation and average are calculated using records in a range.
+
+    If the value is nan, result is nan. 
+
+    If previous data is not enough to calculate standard deviation, the 
+    value is kept the same. 
     """
     
-    def __init__(self, n: int | float, length: int) -> None:
+    def __init__(self, n: float, length: int, remove: bool = False) -> None:
         """Remove records out of n standard deviation in a batch.
     
         For example, if avg = 10, std = 2, n = 2, then data > 14 and data < 6 will 
         be removed from the batch.
         Standard deviation and average are calculated using the batch data.
+
+        If the value is nan, result is nan.
+
+        If previous data is not enough to calculate standard deviation, the 
+        value is kept the same. 
         
         :param n: the number of standard deviation of range.
         :param length: the number of records included to calculate stdev.
+        :param remove: set true to remove out of range data.
         """
         super().__init__(length)
-        self.__N = n
+        self.__N = float(n)
+        type_check(remove, "remove", bool)
+        self.__REMOVE = remove
         
     async def process(self, data: DataFrame) -> DataFrame:
         
         type_check(data, "data", DataFrame)
         if self._data is None:
             self.initialize_data(data)
-        if data.shape[0] > 3000:
-            progress_bar = tqdm(total=data.size - data.shape[0], desc="Moving stdev Range Filter")
-        else:
-            progress_bar = None
-        
-        for i in range(data.shape[1]):
+
+        for i in range(1, data.shape[1]):
             key = data.keys()[i]
-            if i == 0:
-                continue
-            records = data.get(key).to_list()
-            for j, record in zip(range(len(records)), records):
-                self._data[key].append(record)
-                #Cannot compute stdev when n < 2.
-                if len(self._data[key]) < 2:
+            for j in range(data.shape[0]):
+                value = data.iloc[j, i]
+                if isna(value):
                     continue
-                average = sum(self._data[key]) / len(self._data[key])
-                std = stdev(self._data[key])
-                upper_bound = average + self.__N * std
-                lower_bound = average - self.__N * std
-                #Get each record from dataframe.
-                if data.iloc[j, i] > upper_bound or data.iloc[j, i] < lower_bound:
-                    data.iloc[j, i] = nan
-                if progress_bar is not None:
-                    progress_bar.update(1)
-        if progress_bar is not None:
-            progress_bar.close()
-                    
-        #Remove rows that are all Nan in each column except timestamp.
-        data.dropna(thresh=data.shape[1] - 1, inplace=True)
-        await asyncio.sleep(0)
+                self._data[key].append(value)
+                if len(self._data[key]) <= 2:
+                    continue
+                standard_deviation = stdev(self._data[key])
+                average = mean(self._data[key])
+                upper_bound = average + self.__N * standard_deviation
+                lower_bound = average - self.__N * standard_deviation
+                if lower_bound <= value <= upper_bound:
+                    continue
+                if self.__REMOVE:
+                    data.iloc[j, i] = None
+                    continue
+                
+                if data.iloc[j, i] < lower_bound:
+                    data.iloc[j, i] = lower_bound
+                else:
+                    data.iloc[j, i] = upper_bound
+
         return data
-    
+
 
 class AccumulateFilter(Filter):
     """Accumulate records until the dataframe has at most n rows.
@@ -499,7 +487,7 @@ class PipelineFactory():
             try:
                 match filter_setting["type"]:
                     case "StdFilter":
-                        filter = StdFilter()
+                        filter = BatchStdevFilter()
                     case "BatchAverageFilter":
                         filter = BatchAverageFilter()
                     case "MovingAverageFilter":

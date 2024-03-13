@@ -13,7 +13,7 @@ from base.sensor.modbus import ModbusRTUBasedSensor
 from base.gateway import ModbusRTUGatewayManager
 from base.export import DataExporter
 from base.export.common_exporters import ExporterFactory
-from base.pipeline.common_filters import PipelineFactory
+from base.pipeline.time_series_filters import PipelineFactory
 
 
 __all__ = [

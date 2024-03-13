@@ -6,7 +6,7 @@ import pandas as pd
 
 from base.export.common_exporters import WeeklyCsvExporter
 from base.pipeline import Filter, Pipeline
-from base.pipeline.common_filters import *
+from base.pipeline.time_series_filters import *
 
 
 class TestDecreaseFilter(Filter):
