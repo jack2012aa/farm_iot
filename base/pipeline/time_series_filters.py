@@ -9,7 +9,8 @@ __all__ = [
     "FIFOFilter", 
     "MovingAverageFilter", 
     "MovingMedianFilter", 
-    "MovingStdevFilter"
+    "MovingStdevFilter", 
+    "AccumulateFilter"
 ]
 
 import logging
@@ -18,7 +19,7 @@ from datetime import datetime
 from collections import deque
 from statistics import median, stdev, mean
 
-from pandas import DataFrame, Series, isna
+from pandas import DataFrame, Series, isna, concat
 
 from general import type_check
 from base.manage import Manager
@@ -395,7 +396,7 @@ class AccumulateFilter(Filter):
     average filter and then an accumulate filter, then the accumulate filter 
     can generate a new 'batch' of data. 
 
-    Example:
+    ## Example:
     If filter.process(data) is called and 
     1. Rows of data + rows of historical data in this filter object < n, then 
     the rows of returned data will be smaller than n.
@@ -411,44 +412,37 @@ class AccumulateFilter(Filter):
         average filter and then an accumulate filter, then the accumulate filter 
         can generate a new 'batch' of data. 
 
-        Example:
+        ## Example:
         If filter.process(data) is called and 
         1. Rows of data + rows of historical data in this filter object < n, then 
         the rows of returned data will be smaller than n.
         2. Rows of data + rows of historical data > n and rows of data < n, then 
         the rows of returned data will be exactly n (historical data and front data). 
         Data that doesn't contain in this batch will be saved.
-        3. Rows of data > n and rows of data + rows of historical data > 2n, then it 
-        will be return with historical data. 
+        3. Rows of data + rows of historical data > 2n, then only the last n 
+        rows in the new data are returned. Historial data is popped.
 
         :param length: the maximum number of rows to be accumulated.
         """
         super().__init__()
         self.__MAX_LENGTH = length
-        self.__data = []
+        self.__old = DataFrame()
 
     async def process(self, data: DataFrame) -> DataFrame:
         
         type_check(data, "data", DataFrame)
 
-        result_df = None
-        columns = data.keys()
-        if data.shape[0] + len(self.__data) >= 2 * self.__MAX_LENGTH:
-            for _, series in data.iterrows():
-                row = series.to_list()
-                self.__data.append(row)
-                result_df = DataFrame(self.__data, columns=columns)
-                self.__data = []
+        if data.shape[0] + self.__old.shape[0] >= 2 * self.__MAX_LENGTH:
+            self.__old = DataFrame()
+            return DataFrame(data.iloc[-self.__MAX_LENGTH:, :])
+        elif data.shape[0] + self.__old.shape[0] < self.__MAX_LENGTH:
+            self.__old = concat([self.__old, data], ignore_index=True)
+            return self.__old.copy()
         else:
-            for _, series in data.iterrows():
-                row = series.to_list()
-                self.__data.append(row)
-                if len(self.__data) == self.__MAX_LENGTH:
-                    result_df = DataFrame(self.__data, columns=columns)
-                    self.__data = []
-        if result_df is None:
-            result_df = DataFrame(self.__data, columns=columns)
-        return result_df
+            export_rows = self.__MAX_LENGTH - self.__old.shape[0]
+            old_copy = self.__old.copy()
+            self.__old = DataFrame(data.iloc[export_rows + 1:, :])
+            return concat([old_copy, data.iloc[:export_rows, :]], ignore_index=True)
 
 
 class PipelineFactory():

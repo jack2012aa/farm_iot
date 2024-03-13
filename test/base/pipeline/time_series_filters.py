@@ -255,6 +255,38 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
                         self.assertTrue(pd.isna(result_value))
             progress_bar.update(1)
         progress_bar.close()
+
+    async def test_acculumate_filter(self):
+
+        progress_bar = tqdm(total=4000, desc="Testing on AccumulateFilter")
+        filter = AccumulateFilter(100)
+        old = pd.DataFrame()
+        for _ in range(200):
+            for _ in range(20):
+                data = generate_time_series(lower_bound_of_rows=1, upper_bound_of_rows=250)
+                result = await filter.process(data.copy())
+                if old.shape[0] + data.shape[0] >= 200:
+                    pd.testing.assert_frame_equal(
+                        data.iloc[-100:, :], 
+                        result
+                    )
+                    old = pd.DataFrame()
+                elif data.shape[0] + old.shape[0] < 100:
+                    pd.testing.assert_frame_equal(
+                        pd.concat([old, data], ignore_index=True), 
+                        result
+                    )
+                    old = result
+                else:
+                    export_rows = 100 - old.shape[0]
+                    pd.testing.assert_frame_equal(
+                        pd.concat([old, data.iloc[:export_rows, :]], ignore_index=True),
+                        result
+                    )
+                    old = pd.DataFrame(data.iloc[export_rows + 1:, :])
+                progress_bar.update(1)
+        progress_bar.close()
         
+
 if __name__ == '__main__':
     unittest.main()
