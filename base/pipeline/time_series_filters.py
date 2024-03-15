@@ -10,12 +10,13 @@ __all__ = [
     "MovingAverageFilter", 
     "MovingMedianFilter", 
     "MovingStdevFilter", 
-    "AccumulateFilter"
+    "AccumulateFilter", 
+    "BatchConsumptionFilter"
 ]
 
 import logging
 from abc import ABC
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from collections import deque
 from statistics import median, stdev, mean
 
@@ -264,8 +265,8 @@ class MovingAverageFilter(FIFOFilter):
         for i in range(data.shape[1]):
             key = data.keys()[i]
             if i == 0:
-                time = data.get(key).to_list()
-                result[key] = time
+                times = data.get(key).to_list()
+                result[key] = times
                 continue
             moving_averages = []
             values = data.get(key).to_list()
@@ -303,8 +304,8 @@ class MovingMedianFilter(FIFOFilter):
         for i in range(data.shape[1]):
             key = data.keys()[i]
             if i == 0:
-                time = data.get(key).to_list()
-                result[key] = time
+                times = data.get(key).to_list()
+                result[key] = times
                 continue
             moving_medians = []
             values = data.get(key).to_list()
@@ -443,6 +444,203 @@ class AccumulateFilter(Filter):
             old_copy = self.__old.copy()
             self.__old = DataFrame(data.iloc[export_rows + 1:, :])
             return concat([old_copy, data.iloc[:export_rows, :]], ignore_index=True)
+
+
+class BatchConsumptionFilter(FIFOFilter):
+    """Calculate the change of data in a period of time.
+    
+    Assume that you are collecting data of amounts of feed remaining in your 
+    pet's bowl. You add some feeds into it everyday and your pet may stand on 
+    it to intefere with your calculation. Then, this filter can help you. 
+
+    This filter has two main assumption:
+    1. Your pet only let the weight data higher but not lower.
+    2. The amount of feed you add in once is heavier than your pet. 
+
+    The filter calculates under this two assumptions.
+    """
+    def __init__(
+            self,
+            front: int, 
+            tail: int, 
+            methods: list[str] = ["difference"], 
+            difference_multiple: float = 2, 
+            start_time: time = time(7, 0), 
+            end_time: time = time(17, 0), 
+            export_time_duration: timedelta = timedelta(hours=1)
+    ) -> None:
+        """Calculate the change of data in a period of time.
+    
+        Assume that you are collecting data of amounts of feed remaining in your 
+        pet's bowl. You add some feeds into it everyday and your pet may stand on 
+        it to intefere with your calculation. Then, this filter can help you. 
+
+        This filter has two main assumption:
+        1. Your pet only let the weight data higher but not lower.
+        2. The amount of feed you add in once is heavier than your pet. 
+
+        The filter calculates under this two assumptions.
+        :param front: how many data to be considered as the weight before the \
+        adding feed action.
+        :param tail: how many data to be considered as the weight after the \
+        adding feed action.
+        :param methods: including "difference" will consider the difference \
+        of weights before and after the adding feed action; including "time" 
+        will restrict the happenning time of adding feed action.
+        :param difference_multiple: when "difference" method is included, the \
+        filter only consider there is an adding feed action when the median of 
+        tail is `difference_multiple` times larger than the median of front.
+        :param start_time: when "time" method is included, the adding feed \
+        action must later than `start_time` in a day. 
+        :param end_time: when "time" method is included, the adding feed \
+        action must before than `end_time` in a day. 
+        :param export_time_duration: the duration between two export of \
+        consumption data.
+        """
+        type_check(front, "front", int)
+        type_check(tail, "tail", int)
+        self.__FRONT = front
+        self.__TAIL = tail
+        super().__init__(tail + front)
+        difference_multiple = float(difference_multiple)
+        self.__DIFFERENCE_MULTIPLE = difference_multiple
+        type_check(start_time, "start_time", time)
+        type_check(end_time, "end_time", time)
+        self.__START_TIME = start_time
+        self.__END_TIME = end_time
+        self.__remain: dict[str, float] = {}
+        self.__lowest_record: dict[str, float] = {}
+        self.__use_difference = False
+        self.__use_time = False
+        if "time" in methods:
+            self.__use_time = True
+        if "difference" in methods:
+            self.__use_difference = True
+        self.__data_datetime: dict[str, deque] = {}
+        self.__last_export_datetime: dict[str, datetime] = {}
+        type_check(export_time_duration, "export_time_duration", timedelta)
+        self.__EXPORT_TIME_DURATION = export_time_duration
+
+    def __is_tail_larger_than_front(self, key: str) -> bool:
+
+        if len(self._data[key]) < self._MAX_LENGTH:
+            return False
+        tail_min = min(list(self._data[key])[-self.__TAIL:])
+        front_max = max(list(self._data[key])[:self.__FRONT])
+        return tail_min >= front_max
+    
+    def __is_more_than_difference(self, key: str) -> bool:
+
+        if len(self._data[key]) < self._MAX_LENGTH:
+            return False
+        tail_median = median(list(self._data[key])[-self.__TAIL:])
+        front_median = median(list(self._data[key])[:self.__FRONT])
+        return tail_median / front_median >= self.__DIFFERENCE_MULTIPLE
+    
+    def __is_in_time_range(self, key: str) -> bool:
+
+        if len(self._data) < self._MAX_LENGTH:
+            return False
+        start_time = self.__data_datetime[key][0].time()
+        end_time = self.__data_datetime[key][-1].time()
+        return self.__START_TIME <= start_time <= end_time <= self.__END_TIME
+    
+    def __is_adding_action(self, key: str) -> bool:
+
+        result = self.__is_tail_larger_than_front(key)
+        if self.__use_difference:
+            result = result and self.__is_more_than_difference(key)
+        if self.__use_time:
+            result = result and self.__is_in_time_range(key)
+        return result
+
+    def __add_consumed(
+            self, 
+            key: str, 
+            result_dict: dict, 
+            datetime_column_name: str, 
+            current_datetime: datetime
+    ) -> None:
+
+        consumed = self.__remain[key] - self.__lowest_record[key]
+        if current_datetime in result_dict[datetime_column_name]:
+            #Don't need to insert a new row.
+            index = result_dict[datetime_column_name].index(current_datetime)
+            result_dict[key][index] = consumed
+            return
+        result_dict[datetime_column_name].append(current_datetime)
+        for each_key in list(result_dict.keys())[1:]:
+            if each_key == key:
+                result_dict[each_key].append(consumed)
+            else:
+                result_dict[each_key].append(None)
+        return
+    
+    def __should_export(self, key: str, current_datetime: datetime) -> None:
+
+        if self.__last_export_datetime[key] is None:
+            return True
+        return self.__last_export_datetime[key] + \
+            self.__EXPORT_TIME_DURATION <= \
+            current_datetime
+
+    async def process(self, data: DataFrame) -> DataFrame:
+        
+        type_check(data, "data", DataFrame)
+        if self._data is None:
+            self.initialize_data(data)
+            for key in data.keys():
+                self.__data_datetime[key] = deque(
+                    [], 
+                    self._MAX_LENGTH
+                )
+                #First value is the first not nan value. 
+                #Nan value will be skip in latter codes, so doing here first 
+                #is acceptable.
+                first_value = data.get(key).dropna()[0]
+                self.__remain[key] = first_value
+                self.__lowest_record[key] = first_value
+                self.__last_export_datetime[key] = None
+
+        result_dict = {key: [] for key in data.keys()}
+        datetime_column_name = data.keys()[0]
+
+        for i in range(1, data.shape[1]):
+            key = data.keys()[i]
+            for j in range(data.shape[0]):
+                value = data.iloc[j, i]
+                if isna(value):
+                    continue
+                current_datetime = data.iloc[j, 0]
+                self._data[key].append(value)
+                self.__data_datetime[key].append(current_datetime)
+                self.__lowest_record[key] = min(value, self.__lowest_record[key])
+                if len(self._data[key]) < self._MAX_LENGTH:
+                    continue
+                #Check adding feeds action
+                if self.__is_adding_action(key):
+                    self.__add_consumed(
+                        key, 
+                        result_dict, 
+                        datetime_column_name, 
+                        current_datetime
+                    )
+                    remain = median(list(self._data[key])[-self.__TAIL:])
+                    self.__remain[key] = remain
+                    self.__lowest_record[key] = remain
+                    self.__last_export_datetime[key] = current_datetime
+                    continue
+                if self.__should_export(key, current_datetime):
+                    self.__add_consumed(
+                        key, 
+                        result_dict, 
+                        datetime_column_name, 
+                        current_datetime
+                    )
+                    self.__remain[key] = self.__lowest_record[key]
+                    self.__last_export_datetime[key] = current_datetime
+
+        return DataFrame(result_dict).sort_values(by=datetime_column_name, axis=0)
 
 
 class PipelineFactory():

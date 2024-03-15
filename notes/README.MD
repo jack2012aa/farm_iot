@@ -1,4 +1,6 @@
 # Update Log
+## 2024-03-15
+* Add BatchConsumptionFilter to compute feed intake.
 ## 2024-03-13
 * Tested on how to process weight data. Using BatchAvg, MovingAvg and Std seems good, unrelated with there order. 
 It is impossible to verify there correctness. This will be done when calculating everyday feed consuming.

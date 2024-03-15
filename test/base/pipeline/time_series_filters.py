@@ -1,6 +1,7 @@
 import random
 import logging
 import unittest
+from datetime import timedelta
 from collections import deque
 from statistics import stdev, mean, median
 
@@ -286,6 +287,145 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
                     old = pd.DataFrame(data.iloc[export_rows + 1:, :])
                 progress_bar.update(1)
         progress_bar.close()
+
+    async def test_batch_consumption_filter(self):
+
+        progress_bar = tqdm(total=2500, desc="Testing on BatchConsumptionFilter")
+        for _ in range(2500):
+            filter = BatchConsumptionFilter(
+                front=10, 
+                tail=5, 
+                methods=["difference"], 
+                export_time_duration=timedelta(minutes=2)
+            )
+            data = generate_time_series(
+                lower_bound_of_data=30, 
+                upper_bound_of_data=35, 
+                lower_bound_of_rows=49, 
+                upper_bound_of_rows=50, 
+                number_of_columns=2, 
+                generate_none=False
+            )
+            data_deque = {
+                "values0": deque([], 15), 
+                "values1": deque([], 15)
+            }
+            datetime_deque = {
+                "values0": deque([], 15),
+                "values1": deque([], 15)
+            }
+            last_export_time = {"values0": None, "values1": None}
+            remain = {
+                "values0": data.iloc[0, 1], 
+                "values1": data.iloc[0, 2]
+            }
+            lowest = remain.copy()
+            result = await filter.process(data)
+            index = {"values0": 0, "values1": 0}
+            for key in ["values0", "values1"]:
+                times = result.iloc[:, 0]
+                values = result.get(key)
+                seperated_result = times.to_frame().join(values).dropna()
+                for (_, value), timestamp in zip(
+                    data.get(key).items(), 
+                    data.iloc[:, 0]
+                ):
+                    data_deque[key].append(value)
+                    datetime_deque[key].append(timestamp)
+                    lowest[key] = min(lowest[key], value)
+                    if len(data_deque[key]) < 15:
+                        continue
+                    front_max = max(list(data_deque[key])[:10])
+                    front_median = median(list(data_deque[key])[:10])
+                    tail_min = min(list(data_deque[key])[-5:])
+                    tail_median = median(list(data_deque[key])[-5:])
+                    if tail_min >= front_max and tail_median / front_median >= 2:
+                        self.assertAlmostEqual(
+                            seperated_result.iloc[index[key], 1], 
+                            remain[key] - lowest[key]
+                        )
+                        self.assertEqual(
+                            seperated_result.iloc[index[key], 0], 
+                            timestamp
+                        )
+                        remain[key] = median(list(data_deque[key])[-5:])
+                        lowest[key] = remain[key]
+                        last_export_time[key] = timestamp
+                        index[key] += 1
+                        continue
+                    if last_export_time[key] is None or \
+                        last_export_time[key] + timedelta(minutes=2) <= timestamp:
+                        self.assertAlmostEqual(
+                            seperated_result.iloc[index[key], 1], 
+                            remain[key] - lowest[key]
+                        )
+                        self.assertEqual(
+                            seperated_result.iloc[index[key], 0], 
+                            timestamp
+                        )
+                        remain[key] = lowest[key]
+                        last_export_time[key] = timestamp
+                        index[key] += 1
+
+            data = generate_time_series(
+                lower_bound_of_data=80, 
+                upper_bound_of_data=90, 
+                lower_bound_of_rows=49, 
+                upper_bound_of_rows=50, 
+                generate_none=False, 
+                number_of_columns=2, 
+                starting_datetime=data.iloc[-1, 0]
+            )
+            result = await filter.process(data)
+            index = {"values0": 0, "values1": 0}
+            for key in ["values0", "values1"]:
+                times = result.iloc[:, 0]
+                values = result.get(key)
+                seperated_result = times.to_frame().join(values).dropna()
+                for (_, value), timestamp in zip(
+                    data.get(key).items(), 
+                    data.iloc[:, 0]
+                ):
+                    data_deque[key].append(value)
+                    datetime_deque[key].append(timestamp)
+                    lowest[key] = min(lowest[key], value)
+                    if len(data_deque[key]) < 15:
+                        continue
+                    front_max = max(list(data_deque[key])[:10])
+                    front_median = median(list(data_deque[key])[:10])
+                    tail_min = min(list(data_deque[key])[-5:])
+                    tail_median = median(list(data_deque[key])[-5:])
+                    if tail_min >= front_max and tail_median / front_median >= 2:
+                        self.assertAlmostEqual(
+                            seperated_result.iloc[index[key], 1], 
+                            remain[key] - lowest[key]
+                        )
+                        self.assertEqual(
+                            seperated_result.iloc[index[key], 0], 
+                            timestamp
+                        )
+                        remain[key] = median(list(data_deque[key])[-5:])
+                        lowest[key] = remain[key]
+                        last_export_time[key] = timestamp
+                        index[key] += 1
+                        continue
+                    if last_export_time[key] is None or \
+                        last_export_time[key] + timedelta(minutes=2) <= timestamp:
+                        self.assertAlmostEqual(
+                            seperated_result.iloc[index[key], 1], 
+                            remain[key] - lowest[key]
+                        )
+                        self.assertEqual(
+                            seperated_result.iloc[index[key], 0], 
+                            timestamp
+                        )
+                        remain[key] = lowest[key]
+                        last_export_time[key] = timestamp
+                        index[key] += 1
+            progress_bar.update(1)
+            
+        progress_bar.close()
+
         
 
 if __name__ == '__main__':

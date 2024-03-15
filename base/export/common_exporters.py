@@ -18,7 +18,8 @@ from base.export import DataExporter
 __all__ = [
     "WeeklyCsvExporter", 
     "ExporterFactory", 
-    "ScatterPlotExporter"
+    "ScatterPlotExporter", 
+    "PrintExporter"
 ]
 
 
@@ -122,6 +123,8 @@ class PrintExporter(DataExporter):
         super().__init__()
 
     async def export(self, data: pd.DataFrame) -> None:
+        if data.empty:
+            return
         print("PrintExporter: ", data)
 
 

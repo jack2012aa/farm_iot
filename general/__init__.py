@@ -21,7 +21,8 @@ def generate_time_series(
         lower_bound_of_data: int = 1, 
         upper_bound_of_data: int = 114514, 
         number_of_columns: int = 1, 
-        generate_none: bool = True
+        generate_none: bool = True, 
+        starting_datetime: datetime = datetime.now()
     ) -> DataFrame:
     """Generate random time series dataframe. The number of rows and data 
     value are random. Timestamps are ordered in asc order. Nan may exists 
@@ -41,13 +42,13 @@ def generate_time_series(
         data[f"values{i}"] = []
 
     #Generate data
-    current_timestamp = datetime.now()
+    current_timestamp = starting_datetime
     number_of_rows = random.randint(lower_bound_of_rows, upper_bound_of_rows)
     for _ in range(number_of_rows):
         data["Timestamp"].append(current_timestamp)
         current_timestamp = current_timestamp + timedelta(seconds=random.randint(1, 10))
         for i in range(number_of_columns):
-            if random.randint(1, 20) == 1:
+            if generate_none and random.randint(1, 20) == 1:
                 data[f"values{i}"].append(None)
                 continue
             value = random.normalvariate(
