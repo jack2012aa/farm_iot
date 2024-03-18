@@ -480,6 +480,7 @@ class BatchConsumptionFilter(FIFOFilter):
         2. The amount of feed you add in once is heavier than your pet. 
 
         The filter calculates under this two assumptions.
+        
         :param front: how many data to be considered as the weight before the \
         adding feed action.
         :param tail: how many data to be considered as the weight after the \

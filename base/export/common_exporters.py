@@ -16,6 +16,7 @@ from base.export import DataExporter
 
 
 __all__ = [
+    "CsvExporter", 
     "WeeklyCsvExporter", 
     "ExporterFactory", 
     "ScatterPlotExporter", 
@@ -24,19 +25,17 @@ __all__ = [
 
 
 class CsvExporter(DataExporter, abc.ABC):
-    """ An abstract class to export data to csv."""
+    """Export data to csv."""
 
-    def __init__(self) -> None:
-        """ An abstract class to export data to csv."""
+    def __init__(self, path: str = os.path.curdir, file_name: str = "output.csv") -> None:
+        """Export data to csv."""
         super().__init__()
+        self.__PATH = path
+        self.__FILE_NAME = file_name
 
-    @abc.abstractmethod
     def _generate_path(self) -> str:
-        """Generate the path to export data.
-
-        Each sensor has its storage requirements. This method should be implemented based on those requirements.
-        """
-        return NotImplemented
+        """Generate the path to export data."""
+        return os.path.join(self.__PATH, self.__FILE_NAME)
     
     async def export(self, data: pd.DataFrame) -> None:
         """Export data to csv.
