@@ -1,4 +1,6 @@
 # Update Log
+## 2024-04-15
+* Add MQTTClientManager using paho-mqtt (aiomqtt does not support python 3.12).
 ## 2024-03-15
 * Add BatchConsumptionFilter to compute feed intake.
 ## 2024-03-13

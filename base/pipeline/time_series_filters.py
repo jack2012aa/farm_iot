@@ -163,9 +163,7 @@ class TimeFilter(Filter):
                 for name in self.data_name:
                     new_data[name].append(row.get(name))
 
-        df = DataFrame(new_data)
-        await self.notify_exporters(df)
-        return df
+        return DataFrame(new_data)
     
     
 class FIFOFilter(Filter, ABC):
