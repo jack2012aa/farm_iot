@@ -3,8 +3,9 @@ import asyncio
 
 from pymodbus.client import ModbusBaseClient
 
+from base.gateway.modbus import RTUConnectionSettings
 from base.sensor.modbus import *
-from base.gateway import ModbusRTUGatewayManager, RTUConnectionSettings
+from base.gateway.modbus import ModbusRTUGatewayManager
 from base.manage import Manager, Report
 
 

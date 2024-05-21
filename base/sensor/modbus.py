@@ -9,7 +9,7 @@ from pymodbus.client import ModbusBaseClient
 
 from base.sensor import Sensor
 from base.manage import Report
-from base.gateway import ModbusRTUGatewayManager
+from base.gateway.modbus import ModbusRTUGatewayManager
 from general import type_check
 
 __all__ = [

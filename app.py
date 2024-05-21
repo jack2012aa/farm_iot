@@ -5,7 +5,8 @@ import json
 import asyncio
 import logging
 
-from base.gateway import GatewayManager, ModbusRTUGatewayManager
+from base.gateway import GatewayManager
+from base.gateway.modbus import ModbusRTUGatewayManager
 from base.sensor import SensorManager
 from feed_scale import FeedScaleManager
 

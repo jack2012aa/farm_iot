@@ -6,8 +6,9 @@ import unittest
 
 import pandas as pd
 
-from base.gateway import ModbusRTUGatewayManager, RTUConnectionSettings
+from base.gateway.modbus import ModbusRTUGatewayManager
 from base.export.common_exporters import WeeklyCsvExporter
+from base.gateway.modbus import RTUConnectionSettings
 from feed_scale import FeedScaleRTUSensor, FeedScaleManager
 
 
