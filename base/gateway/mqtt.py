@@ -1,3 +1,7 @@
+__all__ = [
+    "MQTTClientManager"
+]
+
 import os
 import json
 import asyncio
@@ -97,7 +101,7 @@ class MQTTClientManager(GatewayManager):
     async def handle(self, report: Report) -> None:
         pass
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Disconnect the mqtt client."""
         if self.__client is None:
             return
@@ -105,7 +109,7 @@ class MQTTClientManager(GatewayManager):
             task.cancel()
         await asyncio.sleep(0)
         
-    async def __loop_misc(self):
+    async def __loop_misc(self) -> None:
         """Maintain client connection to the broker by calling client.loop_misc
         in a while loop.
         """
@@ -113,7 +117,7 @@ class MQTTClientManager(GatewayManager):
             self.__client.loop_misc()
             await asyncio.sleep(1)
         
-    async def __loop_read(self):
+    async def __loop_read(self) -> None:
         """Call client.loop_read after the socket is sured to be filled with
         messages.
         """
@@ -130,7 +134,7 @@ class MQTTClientManager(GatewayManager):
                 self.__client.loop_read()
             await asyncio.sleep(0.5)
         
-    async def subscribe(self, topic: str):
+    async def subscribe(self, topic: str) -> None:
         """Subscribe a MQTT topic.
         
         :param topic: a MQTT topic.
