@@ -44,7 +44,7 @@ class ModbusRTUGatewayTestCase(unittest.IsolatedAsyncioTestCase):
         
     async def test_initialize(self):
         
-        await self.manager.initialize("test/base/gateway/test_settings.json")
+        await self.manager.initialize("test/helper/modbus_gateway_settings.json")
         self.assertIsNotNone(self.manager.get_connection("COM3"))
         self.assertIsNone(self.manager.get_connection("COM10"))
         self.assertIsNone(self.manager.get_connection("COM7"))
