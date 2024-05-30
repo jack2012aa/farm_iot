@@ -1,4 +1,5 @@
 # Update Log
+* Restructure MQTTClientManager.
 ## 2024-04-15
 * Add MQTTClientManager using paho-mqtt (aiomqtt does not support python 3.12).
 ## 2024-03-15

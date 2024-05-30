@@ -17,22 +17,25 @@ from base.gateway import GatewayManager
 class MQTTClientManager(GatewayManager):
     """A class listening to MQTT broker and distributing message to 
     corresponding queue.
-
-    
-    The json configuration file should look like this:
-    {
-        "host": "192.168.1.123", 
-        "port": "1883"
-    }
-
-    :param path: path of configuration file.
-    :raises: TypeError, FileNotFoundError.
     """
 
     __TOPIC_QUEUE: dict[str, asyncio.Queue] = {}
 
+    def __init__(self) -> None:
+        super().__init__()
 
-    def __init__(self, path: str) -> None:
+    async def initialize(self, path: str = "") -> None:
+        """Connect to MQTT broker and start the loop.
+
+        The json configuration file should look like this:
+        {
+            "host": "192.168.1.123", 
+            "port": "1883"
+        }
+
+        :param path: path of configuration file.
+        :raises: TypeError, FileNotFoundError.
+        """
 
         type_check(path, "path", str)
         if not os.path.isfile(path):
@@ -45,23 +48,21 @@ class MQTTClientManager(GatewayManager):
 
         # Refer to paho-mqtt for instruction.
         self.__client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        self.__client.connect(settings["host"], int(settings["port"]))
-        self.__client.on_connect = self.__on_connect
-        self.__client.on_message = self.__on_message
-        self.__client.loop_start()
-        super().__init__()
-
-    async def initialize(self, path: str = "") -> None:
-        """ Set the running event loop into paho client userdata.
-        
-        :param path: an unused parameter.
-        """
-        # Put current event loop into userdata to call queue.put() in another 
-        # thread. Does not call in __init__ because it has to in a coroutine 
-        # to get the current event loop.
-        self.__client.user_data_set({
-            "event_loop": asyncio.get_event_loop()
-        })
+        try:
+            self.__client.connect(settings["host"], int(settings["port"]))
+            self.__client.on_connect = self.__on_connect
+            self.__client.on_message = self.__on_message
+            self.__client.loop_start()
+            # Put current event loop into userdata to call queue.put() in another 
+            # thread. Does not call in __init__ because it has to in a coroutine 
+            # to get the current event loop.
+            self.__client.user_data_set({
+                "event_loop": asyncio.get_event_loop()
+            })
+        except TimeoutError:
+            msg = f"Fail to connect to MQTT broker {settings["host"]}:{settings["port"]}."
+            logging.error(msg)
+            raise TimeoutError(msg)
 
     def get_topic_queue(self, topic: str) -> asyncio.Queue[mqtt.MQTTMessage]:
         """Return an asyncio.Queue contains messages from a topic.
@@ -123,4 +124,4 @@ class MQTTClientManager(GatewayManager):
             MQTTClientManager.__TOPIC_QUEUE[topic].put(message), 
             loop
         )
-        print("Get a message.")
+        logging.info("Get a MQTT message.")

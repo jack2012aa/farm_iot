@@ -9,25 +9,28 @@ from base.gateway.mqtt import MQTTClientManager
 class MQTTClientTestCase(unittest.IsolatedAsyncioTestCase):
 
     def __init__(self, methodName: str = "runTest") -> None:
-        self.manager = MQTTClientManager("test/helper/mqtt_client_settings.json")
+        self.manager = MQTTClientManager()
         super().__init__(methodName)
 
     async def asyncSetUp(self):
-        await self.manager.initialize("wasted")
+        await self.manager.initialize("test/helper/mqtt_client_settings.json")
 
     async def asyncTearDown(self):
-        pass
+        self.manager.disconnect()
 
     async def test_initialize(self):
 
+        self.manager.disconnect()
         with self.assertRaises(KeyError):
-            MQTTClientManager("test/helper/mqtt_client_settings_missing_key.json")
+            await self.manager.initialize("test/helper/mqtt_client_settings_missing_key.json")
 
+        self.manager.disconnect()
         with self.assertRaises(FileNotFoundError):
-            MQTTClientManager("test/helper/fake.json")
+            await self.manager.initialize("test/helper/fake.json")
 
+        self.manager.disconnect()
         with self.assertRaises(TimeoutError):
-            MQTTClientManager("test/helper/mqtt_client_settings_wrong_host.json")
+            await self.manager.initialize("test/helper/mqtt_client_settings_wrong_host.json")
 
     async def test_read_message(self):
 
@@ -40,7 +43,6 @@ class MQTTClientTestCase(unittest.IsolatedAsyncioTestCase):
             recieve = await queue.get()
             self.assertEqual(message, str(recieve.payload.decode("utf-8")))
             progress_bar.update(1)
-        self.manager.disconnect()
         
         
 if __name__ == '__main__':
