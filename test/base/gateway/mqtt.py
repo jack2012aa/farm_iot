@@ -32,6 +32,8 @@ class MQTTClientTestCase(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(TimeoutError):
             await self.manager.initialize("test/helper/mqtt_client_settings_wrong_host.json")
 
+        self.assertTrue(MQTTClientManager() is self.manager)
+
     async def test_read_message(self):
 
         self.manager.subscribe("CYC_1919test/heartbeat")

@@ -1,0 +1,10 @@
+{
+    "subject": "Test email", 
+    "from": "Lab Email", 
+    "domain_mail_account": "ntuastsbl@gmail.com", 
+    "domain_mail_password": "bbkaeziblbiajpdz", 
+    "employeer_emails": {
+        "Chang-Yu Huang": "jack.mainwork@gmail.com", 
+        "Fake": "fake@ggmail.com"
+    }
+}

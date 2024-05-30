@@ -65,3 +65,12 @@ def transform_na(value: float | int) -> float | int | None:
     if isna(value):
         return None
     return value
+
+def singleton(cls):
+    """A singleton decorator."""
+    instances = {}
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+    return get_instance

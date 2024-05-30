@@ -19,7 +19,7 @@ class Sensor(DataGenerator, ABC):
         length: int, 
         name: str, 
         waiting_time: float, 
-        belonging: tuple[str] = tuple()
+        belonging: tuple[str] = None
     ) -> None:
         """An abstract sensor class which can read data from any source 
         and register pipelines.
@@ -29,6 +29,15 @@ class Sensor(DataGenerator, ABC):
         :param waiting_time: waiting time between two batches of reading in second.
         :param belonging: the belonging of this sensor, who are in charge of it.
         """
+
+        #type_check does not do type casting.
+        if isinstance(waiting_time, int):
+            waiting_time = float(waiting_time)
+
+        # If set tuple() as default, the tuple will share between different 
+        # instances.
+        if belonging is None:
+            belonging = tuple()
 
         type_check(length, "length", int)
         type_check(name, "name", str)

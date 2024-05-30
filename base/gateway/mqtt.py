@@ -10,18 +10,20 @@ import logging
 import paho.mqtt.client as mqtt
 
 from base.manage import Report
-from general import type_check
+from general import type_check, singleton
 from base.gateway import GatewayManager
 
-
+@singleton
 class MQTTClientManager(GatewayManager):
     """A class listening to MQTT broker and distributing message to 
     corresponding queue.
+
+    This is a singleton class. Reinitialize without disconnect() will cause an 
+    error.
     """
 
-    __TOPIC_QUEUE: dict[str, asyncio.Queue] = {}
-
     def __init__(self) -> None:
+        self.__initialized = False
         super().__init__()
 
     async def initialize(self, path: str = "") -> None:
@@ -34,8 +36,15 @@ class MQTTClientManager(GatewayManager):
         }
 
         :param path: path of configuration file.
-        :raises: TypeError, FileNotFoundError.
+        :raises: RuntimeError, TypeError, FileNotFoundError.
         """
+        
+        logging.info("Try to initialize mqtt client.")
+        if self.__initialized:
+            msg = "MQTTClientManager is already initialized."
+            logging.error(msg)
+            raise RuntimeError(msg)
+        self.__initialized = True
 
         type_check(path, "path", str)
         if not os.path.isfile(path):
@@ -47,16 +56,20 @@ class MQTTClientManager(GatewayManager):
             settings = json.load(file)
 
         # Refer to paho-mqtt for instruction.
-        self.__client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.__CLIENT = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.__TOPIC_QUEUE: dict[str, asyncio.Queue] = {}
         try:
-            self.__client.connect(settings["host"], int(settings["port"]))
-            self.__client.on_connect = self.__on_connect
-            self.__client.on_message = self.__on_message
-            self.__client.loop_start()
-            # Put current event loop into userdata to call queue.put() in another 
-            # thread. Does not call in __init__ because it has to in a coroutine 
-            # to get the current event loop.
-            self.__client.user_data_set({
+            self.__CLIENT.connect(
+                settings["host"], 
+                int(settings["port"])
+            )
+            self.__CLIENT.on_connect = self.__on_connect
+            self.__CLIENT.on_message = self.__on_message
+            self.__CLIENT.loop_start()
+            # Put current event loop into userdata to call queue.put() in 
+            # another thread. Does not call in __init__ because it has to in 
+            # a coroutine to get the current event loop.
+            self.__CLIENT.user_data_set({
                 "event_loop": asyncio.get_event_loop()
             })
         except TimeoutError:
@@ -72,8 +85,8 @@ class MQTTClientManager(GatewayManager):
         """
 
         try:
-            MQTTClientManager.__TOPIC_QUEUE[topic]
-            return MQTTClientManager.__TOPIC_QUEUE[topic]
+            self.__TOPIC_QUEUE[topic]
+            return self.__TOPIC_QUEUE[topic]
         except Exception as ex:
             logging.error(
                 f"Topic \"{topic}\" is not defined or MQTTClientManager does not initialize."
@@ -85,8 +98,11 @@ class MQTTClientManager(GatewayManager):
 
     def disconnect(self) -> None:
         """Disconnect the mqtt client."""
-        self.__client.loop_stop()
-        self.__client.disconnect()
+        if not self.__initialized:
+            return
+        self.__CLIENT.loop_stop()
+        self.__CLIENT.disconnect()
+        self.__initialized = False
         
     def subscribe(self, topic: str) -> None:
         """Subscribe a MQTT topic.
@@ -96,8 +112,8 @@ class MQTTClientManager(GatewayManager):
         """
         
         type_check(topic, "topic", str)
-        MQTTClientManager.__TOPIC_QUEUE[topic] = asyncio.Queue()
-        self.__client.subscribe(topic, 2)
+        self.__TOPIC_QUEUE[topic] = asyncio.Queue()
+        self.__CLIENT.subscribe(topic, 2)
 
     async def publish(self, topic: str, payload: str) -> None:
         """ Publish a MQTT message.
@@ -105,14 +121,14 @@ class MQTTClientManager(GatewayManager):
         :param topic: a MQTT topic.
         :param payload: the message to be sent.
         """
-        info = self.__client.publish(topic, payload)
+        info = self.__CLIENT.publish(topic, payload)
         while not info.is_published():
             await asyncio.sleep(0)
         return
     
     def __on_connect(self, client, userdata, flags, reason_code, properties):
         """ A callback function to subscribe topics when connect/reconnect."""
-        topics = list(MQTTClientManager.__TOPIC_QUEUE.keys())
+        topics = list(self.__TOPIC_QUEUE.keys())
         if len(topics) > 0:
             client.subscribe([(topic, 2) for topic in topics])
 
@@ -121,7 +137,7 @@ class MQTTClientManager(GatewayManager):
         loop = userdata["event_loop"]
         topic = message.topic
         asyncio.run_coroutine_threadsafe(
-            MQTTClientManager.__TOPIC_QUEUE[topic].put(message), 
+            self.__TOPIC_QUEUE[topic].put(message), 
             loop
         )
         logging.info("Get a MQTT message.")
