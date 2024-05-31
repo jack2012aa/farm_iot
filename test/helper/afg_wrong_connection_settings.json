@@ -1,0 +1,8 @@
+{
+    "Gate 1": {
+        "connection type": "MQT", 
+        "data_topic": "CYC_test1919", 
+        "heartbeat_topic": "CYC_test1919/heartbeat", 
+        "timeout": "2"
+    }
+}

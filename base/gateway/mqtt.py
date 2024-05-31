@@ -140,4 +140,4 @@ class MQTTClientManager(GatewayManager):
             self.__TOPIC_QUEUE[topic].put(message), 
             loop
         )
-        logging.info("Get a MQTT message.")
+        logging.info(f"Get a MQTT message: {topic}: {message.payload.decode()}.")

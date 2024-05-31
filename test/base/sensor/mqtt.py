@@ -23,7 +23,6 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         # Create the sensor here after client initialized.
         self.sensor = MQTTBasedSensor(
             length=10, 
-            waiting_time=0, 
             name="test",
             data_topic="CYC_1919test",
             heartbeat_topic="CYC_1919test/heartbeat",

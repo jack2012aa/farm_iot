@@ -45,7 +45,7 @@ class FeedScaleRTUSensor(ModbusRTUBasedSensor, FeedScale):
             name: str,
             client: AsyncModbusSerialClient,
             slave: int,
-            belonging: tuple[str] = tuple()
+            belonging: tuple[str] = None
     ) -> None:
         """Read scale data from a RTU slave. 
 
@@ -135,14 +135,11 @@ class FeedScaleManager(SensorManager):
             self.email_settings = email_settings
 
         type_check(path, "path", str)
-        logging.info("Begin to initialize feed scales")
-        print("Begin to initialize feed scales")
+        logging.info("Begin to initialize feed scales.")
 
         if not os.path.isfile(path):
             logging.error(f"Path \"{path}\" does not exist.")
             logging.error("Fail to initialize feed scales.")
-            print(f"Path \"{path}\" does not exist.")
-            print("Fail to initialize feed scales.")
             raise FileNotFoundError
         
         #Initialize variables
@@ -172,7 +169,8 @@ class FeedScaleManager(SensorManager):
                 print(f"Cannot connect to scale \"{scale_name}\".")
                 raise ConnectionError
             
-            #Create and set exporters.
+            # Create and set exporters.
+            # Use get() to avoid exceptions.
             exporters = settings.get("exporters")
             if exporters is None:
                 exporters = []

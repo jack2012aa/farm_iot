@@ -1,0 +1,7 @@
+{
+    "Gate 1": {
+        "connection type": "MQTT", 
+        "data_topic": "CYC_test1919", 
+        "timeout": "2"
+    }
+}

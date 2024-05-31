@@ -32,10 +32,14 @@ class VirtualSensor():
             )
             await asyncio.sleep(duration)
 
-    async def publish(self) -> str:
-        """Publish a random message to {topic} and return it."""
+    async def publish(self, msg: str = None) -> str:
+        """Publish a message to {topic} and return it.
+        
+        :param msg: The message to publish. If None, publish a random message.
+        """
 
-        msg = str(random.randint(0, 1000))
+        if msg is None:
+            msg = str(random.randint(0, 1000))
         await self.__client.publish(self.__TOPIC, msg)
         return msg
     

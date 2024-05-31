@@ -1,4 +1,7 @@
 # Update Log
+## 2024-05-31
+* Add AutoFeederGate and AutoFeederGateManger.
+## 2024-05-30
 * Restructure MQTTClientManager to singleton.
 * Add MQTTBasedSensor.
 ## 2024-04-15
