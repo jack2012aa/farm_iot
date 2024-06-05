@@ -53,7 +53,7 @@ python app.py
 相對路徑是指以當前的路徑為基處延伸的路徑。比如如果在 `app.py` 中這樣寫：
 ```python
 # app.py
-from farn_iot.farm_iot import something
+from farm_iot.farm_iot import something
 ```
 Python 就會知道要從 {工作路徑}/farm_iot/farm_iot.py 中 import something。
 
