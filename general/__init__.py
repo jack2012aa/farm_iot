@@ -1,5 +1,6 @@
 """ Some useful functions. """
 import random
+import logging
 from datetime import datetime, timedelta
 
 from pandas import isna
@@ -13,7 +14,9 @@ def type_check(var, var_name: str, correct_type):
     """
 
     if not isinstance(var, correct_type):
-        raise TypeError(f"{var_name} should be of type {correct_type.__name__}. Got {type(var).__name__} instead.")
+        msg = f"{var_name} should be of type {correct_type.__name__}. Got {type(var).__name__} instead."
+        logging.error(msg)
+        raise TypeError(msg)
     
 def generate_time_series(
         lower_bound_of_rows: int = 0, 
