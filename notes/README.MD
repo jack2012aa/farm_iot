@@ -1,4 +1,6 @@
 # Update Log
+## 2024-06-14
+* Add new consumption filter.
 ## 2024-05-31
 * Add AutoFeederGate and AutoFeederGateManger.
 ## 2024-05-30
