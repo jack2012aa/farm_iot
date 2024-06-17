@@ -67,9 +67,6 @@ class AutoFeederGateMQTTSensor(MQTTBasedSensor, AutoFeederGate):
             timeout: float = 60, 
             belonging: tuple[str] = None
         ) -> None:
-        # An async queue of size one.
-        # When the feeder is adding feed, fill this queue so other objects 
-        # can monitor this queue.
         self.__adding_feed = False
         self.__status = self.GateStatus.NO_MESSAGE
         MQTTBasedSensor.__init__(
@@ -102,15 +99,17 @@ class AutoFeederGateMQTTSensor(MQTTBasedSensor, AutoFeederGate):
         match receive_status:
             case "Open":
                 self.__status = self.GateStatus.OPEN
+                self.__adding_feed = False
             case "Closed":
-                # If the gate is closing, put a message to the async queue.
                 if self.__status == self.GateStatus.OPEN:
                     self.__adding_feed = True
                 self.__status = self.GateStatus.CLOSED
             case "Manually open":
                 self.__status = self.GateStatus.MANUALLY_OPEN
+                self.__adding_feed = False
             case "Manually closed":
                 self.__status = self.GateStatus.MANUALLY_CLOSED
+                self.__adding_feed = False
             case _:
                 msg = f"{receive_status} is not a valid status."
                 logging.error(msg)
@@ -127,8 +126,9 @@ class AutoFeederGateMQTTSensor(MQTTBasedSensor, AutoFeederGate):
     def is_adding_feed(self) -> bool:
         """Return whether the gate is closing the gate. 
         
-        If the gate is closing, this call will change __adding_feed to False, 
-        which means the adding feed status can only read one time.
+        If return True, __adding_feed is changed to False; either when the 
+        sensor send new message other than "Closed", which means each closing 
+        message can only be handled once.        
         """
         if self.__adding_feed:
             self.__adding_feed = False
