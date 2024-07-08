@@ -26,6 +26,7 @@ from general import type_check
 from base.manage import Manager
 from base.pipeline import Filter, Pipeline
 from base.export.common_exporters import ExporterFactory
+from auto_feeder_gate_manager import BatchConsumptionFilterBySensor
 
 
 class BatchStdevFilter(Filter):
@@ -683,9 +684,13 @@ class PipelineFactory():
                         filter = BatchAverageFilter()
                     case "MovingAverageFilter":
                         filter = MovingAverageFilter(filter_setting["max_length"])
+                    case "BatchConsumptionFilterBySensor":
+                        filter = BatchConsumptionFilterBySensor(filter_setting["gate_names"])
                     case _:
-                        print(f"Filter type {filter_setting["type"]} does not exist.")
-                        raise ValueError
+                        msg = f"Filter type {filter_setting["type"]} does not exist."
+                        print(msg)
+                        logging.error(msg)
+                        raise ValueError(msg)
             #Required specific setting not found.
             except KeyError as ex:
                 print(f"Filter type {filter_setting["type"]} misses setting \"{ex.args[0]}\"")
