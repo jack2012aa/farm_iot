@@ -7,8 +7,10 @@ import logging
 
 from base.gateway import GatewayManager
 from base.gateway.modbus import ModbusRTUGatewayManager
+from base.gateway.mqtt import MQTTClientManager
 from base.sensor import SensorManager
 from feed_scale import FeedScaleManager
+from auto_feeder_gate_manager import AutoFeederGateManager
 
 
 async def main():
@@ -41,6 +43,9 @@ async def main():
                 case "ModbusRTUGatewayManager":
                     manager = ModbusRTUGatewayManager()
                     await manager.initialize(config_path)
+                case "MQTTClientManager":
+                    manager = MQTTClientManager()
+                    await manager.initialize(config_path)
                 case _:
                     logging.error(f"Gateway manager \"{name}\" isn't defined.")
                     print(f"Gateway manager \"{name}\" isn't defined.")
@@ -53,6 +58,9 @@ async def main():
             match name:
                 case "FeedScaleManager":
                     manager = FeedScaleManager()
+                    await manager.initialize(config_path)
+                case "AutoFeederGateManager":
+                    manager = AutoFeederGateManager()
                     await manager.initialize(config_path)
                 case _:
                     logging.error(f"Sensor manager \"{name}\" isn't defined.")

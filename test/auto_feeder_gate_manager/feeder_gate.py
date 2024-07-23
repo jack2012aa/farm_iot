@@ -1,9 +1,14 @@
 import logging
 import asyncio
 import unittest
+from unittest.mock import patch, Mock
+
+from tqdm import tqdm
+import pandas as pd
 
 from test.helper import VirtualSensor
 from auto_feeder_gate_manager import *
+from general import generate_time_series
 from base.gateway.mqtt import MQTTClientManager
 
 
@@ -83,7 +88,54 @@ class MyTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(gate.is_adding_feed())
 
         # To Do: a test for dead sensor.
+        
+    @patch("auto_feeder_gate_manager.AutoFeederGateManager")
+    async def test_batch_consumption_filter_by_sensor(self, MockManager):
+        
+        # Declare variables.
+        mock_manager: Mock # Mock AutoFeederGateManager.
+        mock_gate:Mock # Mock AutoFeederGate.
+        df: pd.DataFrame # Test data.
+        result_df: pd.DataFrame # Processed data.
+        filter: BatchConsumptionFilterBySensor # Test filter.
+        remain: float # Test data remain.
+        
+        # Set Mock.
+        mock_manager = MockManager.return_value
+        mock_gate = mock_manager.get_gate.return_value
+        
+        filter = BatchConsumptionFilterBySensor(gate_names=["values0"])
 
+        # First process.
+        mock_gate.is_adding_feed.return_value = False
+        df = generate_time_series(lower_bound_of_rows=1, generate_none=False)
+        remain = min(df.get("values0").to_list())
+        result_df = await filter.process(df)
+        self.assertEqual(0, result_df.iloc[0, 1])
+        
+        progress_bar = tqdm(total=2500, desc="Testing on BatchConsumptionFilter")
+        for _ in range(2500):
+            progress_bar.update(1)
+            # Second process.
+            mock_gate.is_adding_feed.return_value = True
+            df = generate_time_series(lower_bound_of_rows=1, generate_none=False)
+            result_df = await filter.process(df)
+            self.assertEqual(
+                max(0, remain - min(df.get("values0").to_list())),
+                result_df.iloc[0, 1]
+            )
+            remain = max(df.get("values0").to_list())
+
+            # Third process.
+            mock_gate.is_adding_feed.return_value = False
+            df = generate_time_series(lower_bound_of_rows=1, generate_none=False)
+            result_df = await filter.process(df)
+            self.assertEqual(
+                max(0, remain - min(df.get("values0").to_list())),
+                result_df.iloc[0, 1]
+            )
+            remain = min(remain, min(df.get("values0").to_list()))
+        progress_bar.close()
 
 if __name__ == '__main__':
     unittest.main()

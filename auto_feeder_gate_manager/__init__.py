@@ -1,7 +1,8 @@
 __all__ = [
     "AutoFeederGate",
     "AutoFeederGateMQTTSensor", 
-    "AutoFeederGateManager"
+    "AutoFeederGateManager", 
+    "BatchConsumptionFilterBySensor"
 ]
 
 import os
@@ -15,6 +16,7 @@ from abc import ABC, abstractmethod
 from pandas import DataFrame
 
 from base.manage import Report
+from base.pipeline import Filter
 from base.sensor import SensorManager
 from general import type_check, singleton
 from base.sensor.mqtt import MQTTBasedSensor
@@ -65,9 +67,6 @@ class AutoFeederGateMQTTSensor(MQTTBasedSensor, AutoFeederGate):
             timeout: float = 60, 
             belonging: tuple[str] = None
         ) -> None:
-        # An async queue of size one.
-        # When the feeder is adding feed, fill this queue so other objects 
-        # can monitor this queue.
         self.__adding_feed = False
         self.__status = self.GateStatus.NO_MESSAGE
         MQTTBasedSensor.__init__(
@@ -100,15 +99,17 @@ class AutoFeederGateMQTTSensor(MQTTBasedSensor, AutoFeederGate):
         match receive_status:
             case "Open":
                 self.__status = self.GateStatus.OPEN
+                self.__adding_feed = False
             case "Closed":
-                # If the gate is closing, put a message to the async queue.
                 if self.__status == self.GateStatus.OPEN:
                     self.__adding_feed = True
                 self.__status = self.GateStatus.CLOSED
             case "Manually open":
                 self.__status = self.GateStatus.MANUALLY_OPEN
+                self.__adding_feed = False
             case "Manually closed":
                 self.__status = self.GateStatus.MANUALLY_CLOSED
+                self.__adding_feed = False
             case _:
                 msg = f"{receive_status} is not a valid status."
                 logging.error(msg)
@@ -125,8 +126,9 @@ class AutoFeederGateMQTTSensor(MQTTBasedSensor, AutoFeederGate):
     def is_adding_feed(self) -> bool:
         """Return whether the gate is closing the gate. 
         
-        If the gate is closing, this call will change __adding_feed to False, 
-        which means the adding feed status can only read one time.
+        If return True, __adding_feed is changed to False; either when the 
+        sensor send new message other than "Closed", which means each closing 
+        message can only be handled once.        
         """
         if self.__adding_feed:
             self.__adding_feed = False
@@ -270,3 +272,67 @@ class AutoFeederGateManager(SensorManager):
 
     async def handle(self, report: Report) -> None:
         pass
+
+
+class BatchConsumptionFilterBySensor(Filter):
+
+    def __init__(self, gate_names: list[str]) -> None:
+        """ Use auto gate sensor to correct remain feed and calculate feed 
+        consumption between batches. 
+
+        :param gate_names: names of auto gate sensors, which are registered \
+            in AutoFeederGateManager.
+        :raises: TypeError, KeyError.
+        """
+        # Type check.
+        type_check(gate_names, "gate_names", list)
+        for name in gate_names:
+            if not isinstance(name, str):
+                msg = f"Name in gate_names should be of type str. Got {type(name)} instead."
+                logging.error(msg)
+                raise TypeError(msg)
+
+        # Initialize attributes.
+        manager = AutoFeederGateManager()
+        self.__remains: dict[str, float] = None # Remain feed of each feeder.
+        self.__gates: dict[str, AutoFeederGate] = { # Sensor of each feeder.
+            name: manager.get_gate(name) for name in gate_names
+        }
+        super().__init__()
+
+    async def process(self, data: DataFrame) -> DataFrame:
+        """Calculate feed consumption. Consumption = remain in last batch of 
+        data - lowest weight in this batch of data.
+
+        If gate.is_adding_feed is true, remain will be the highest weight in 
+        this batch, else is the lowest weight.
+
+        :param data: remaining weights time series.
+        :raises: ValueError
+        :return: a time series. Timestamp is the latest datetime in data, value 
+        is the feed consumption.
+        """
+
+        # Declare variables.
+        results: dict[str, list] = {} # Result dictionary.
+        values: list[float] # Weights read by a feeder.
+
+        # Initialize __remains.
+        if self.__remains is None:
+            self.__remains = {
+                name: min(data.get(name).to_list()) for name in self.__gates.keys()
+            }
+
+        results["Timestamp"] = [data.get("Timestamp").iloc[-1]]
+        # Calculate consumption one by one.
+        for name in self.__remains.keys():
+            values = data.get(name).to_list()
+            results[name] = [max(0, self.__remains[name] - min(values))]
+            if self.__gates[name].is_adding_feed():
+                self.__remains[name] = max(values)
+            else:
+                # Prevent all value in values > remain.
+                values.append(self.__remains[name])
+                self.__remains[name] = min(values)
+        await asyncio.sleep(0)
+        return DataFrame(results)

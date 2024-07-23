@@ -1,0 +1,12 @@
+{
+    "Gate 1": {
+        "connection type": "MQTT", 
+        "data_topic": "CYC_1919test", 
+        "heartbeat_topic": "CYC_1919test/heartbeat", 
+        "timeout": "2",
+        "exporters": [
+            {"type": "PrintExporter"}, 
+            {"type": "CsvExporter", "path": "output", "file_name": "gate1_output.csv"}
+        ]
+    }
+}
