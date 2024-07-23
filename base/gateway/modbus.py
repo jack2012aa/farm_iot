@@ -5,6 +5,7 @@ import asyncio
 from dataclasses import dataclass
 
 from pymodbus.client.serial import AsyncModbusSerialClient
+from pymodbus.client.tcp import AsyncModbusTcpClient
 
 from base.gateway import GatewayManager
 from base.manage import Report
@@ -147,6 +148,129 @@ class ModbusRTUGatewayManager(GatewayManager):
                     PARITY=setting_dict["parity"],
                     STOPBITS=int(setting_dict["stopbits"]),
                     TIME_OUT=int(setting_dict["time_out"])
+                )
+                await self.create_connection(settings=setting)
+                logging.info("Connect successfully.")
+                print("Connect successfully.\n")
+            except KeyError as ex:
+                logging.error(f"Missing key \"{ex.args[0]}\".")
+                logging.error(f"Connection fails.\n")
+                print(f"Missing key \"{ex.args[0]}\".")
+                print(f"Connection fails.\n")
+                continue
+            except ConnectionError as ex:
+                logging.error(f"Connection fails.\n")
+                print(f"Connection fails.\n")
+                continue
+
+
+@dataclass
+class TCPConnectionSettings:
+
+    HOST: str
+    PORT: int
+
+
+class ModbusTCPGatewayManager(GatewayManager):
+    """A class managing connection to TCP gateways. 
+
+    Because more than one connection to a port is not allowed, this class maps 
+    each port number to a `AsyncModbusSerialClient` object. \ 
+    Please use the method `get_connection` to get an client object. \ 
+    DO NOT close the connection using the returned client object.
+    """
+
+    __connections: dict[str, AsyncModbusTcpClient] = {}
+    __locks: dict[str, asyncio.Lock] = {}
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_connection(self, port: str) -> AsyncModbusTcpClient | None:
+        """
+        Return a connected `AsyncModbusTcpClient` object. 
+        If the connection does not exist, return None.
+
+        This class maps port number to client object. It does not assure the 
+        equality of baundrate, time out, etc. \ 
+        Please use `create_connection` to create a connection.
+        Please DO NOT close the connection through the returned object.
+        """
+        type_check(port, "port", str)
+        port = port.upper()
+        return ModbusTCPGatewayManager.__connections.get(port)
+
+    def get_lock(self, port: str) -> asyncio.Lock | None:
+        """Return a async lock to manage port access."""
+        type_check(port, "port", str)
+        port = port.upper()
+        return ModbusTCPGatewayManager.__locks.get(port)
+
+    async def create_connection(self, settings: TCPConnectionSettings) -> None:
+        """
+        Create an `AsyncModbusTcpClient` object.
+
+        This class maps port number to client object. It does not assure the 
+        equality of baundrate, time out, etc. \ 
+        Please use `get_connection` to receive the created object.
+        """
+
+        if ModbusTCPGatewayManager.__connections.get(
+            settings.HOST
+        ) is None:
+            # Create a new connection.
+            client = AsyncModbusTcpClient(
+                host=settings.HOST, 
+                port=settings.PORT
+            )
+            # Connect
+            connected = await client.connect()
+            if not connected:
+                #Think about how to handle exceptions later.
+                raise ConnectionError()
+            client.params.retries = 1
+            ModbusTCPGatewayManager.__connections[settings.HOST] = client
+            ModbusTCPGatewayManager.__locks[settings.HOST] = asyncio.Lock()
+
+    def handle(self, report: Report) -> None:
+        """No one should call this method."""
+        print(report.content)
+
+    async def initialize(self, path: str) -> None:
+        """Read settings from json file and connect to gateways.
+
+        The json setting file should look like this:
+        {
+            "Gateway1":{
+                "host": "192.168.69.144
+                "port": 502
+            },
+            "Gateway2":{
+                "host": "192.168.69.144
+                "port": 502
+            }
+        }
+
+        :param path: path to the json setting file.
+        :raises: FileNotFoundError.
+        """
+
+        type_check(path, "path", str)
+        if not os.path.exists(path):
+            logging.error(f"Path \"{path}\" does not exist.")
+            logging.error("Fail to initialize TCP gateways.")
+            print(f"Path \"{path}\" does not exist.")
+            print("Fail to initialize TCP gateways.")
+            raise FileNotFoundError
+        with open(path) as file:
+            settings: dict = json.load(file)
+        for gateway_name, setting_dict in settings.items():
+            logging.info(f"Connecting to {gateway_name}...")
+            print(f"Connecting to {gateway_name}...")
+            try:
+                setting = TCPConnectionSettings(
+                    HOST=setting_dict["host"], 
+                    PORT=setting_dict["port"]
                 )
                 await self.create_connection(settings=setting)
                 logging.info("Connect successfully.")
