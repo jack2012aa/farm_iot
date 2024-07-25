@@ -6,11 +6,12 @@ import asyncio
 import logging
 
 from base.gateway import GatewayManager
-from base.gateway.modbus import ModbusRTUGatewayManager
+from base.gateway.modbus import ModbusRTUGatewayManager, ModbusTCPGatewayManager
 from base.gateway.mqtt import MQTTClientManager
 from base.sensor import SensorManager
 from feed_scale import FeedScaleManager
 from auto_feeder_gate_manager import AutoFeederGateManager
+from air import AirSensorManager
 
 
 async def main():
@@ -43,6 +44,9 @@ async def main():
                 case "ModbusRTUGatewayManager":
                     manager = ModbusRTUGatewayManager()
                     await manager.initialize(config_path)
+                case "ModbusTCPGatewayManager":
+                    manager = ModbusTCPGatewayManager()
+                    await manager.initialize(config_path)
                 case "MQTTClientManager":
                     manager = MQTTClientManager()
                     await manager.initialize(config_path)
@@ -58,6 +62,9 @@ async def main():
             match name:
                 case "FeedScaleManager":
                     manager = FeedScaleManager()
+                    await manager.initialize(config_path)
+                case "AirSensorManager":
+                    manager = AirSensorManager()
                     await manager.initialize(config_path)
                 case "AutoFeederGateManager":
                     manager = AutoFeederGateManager()

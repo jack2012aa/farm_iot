@@ -186,7 +186,7 @@ class ModbusTCPGatewayManager(GatewayManager):
     def __init__(self) -> None:
         super().__init__()
 
-    def get_connection(self, port: str) -> AsyncModbusTcpClient | None:
+    def get_connection(self, host: str) -> AsyncModbusTcpClient | None:
         """
         Return a connected `AsyncModbusTcpClient` object. 
         If the connection does not exist, return None.
@@ -196,21 +196,21 @@ class ModbusTCPGatewayManager(GatewayManager):
         Please use `create_connection` to create a connection.
         Please DO NOT close the connection through the returned object.
         """
-        type_check(port, "port", str)
-        port = port.upper()
-        return ModbusTCPGatewayManager.__connections.get(port)
+        type_check(host, "host", str)
+        host = host.upper()
+        return ModbusTCPGatewayManager.__connections.get(host)
 
-    def get_lock(self, port: str) -> asyncio.Lock | None:
-        """Return a async lock to manage port access."""
-        type_check(port, "port", str)
-        port = port.upper()
-        return ModbusTCPGatewayManager.__locks.get(port)
+    def get_lock(self, host: str) -> asyncio.Lock | None:
+        """Return a async lock to manage host access."""
+        type_check(host, "host", str)
+        host = host.upper()
+        return ModbusTCPGatewayManager.__locks.get(host)
 
     async def create_connection(self, settings: TCPConnectionSettings) -> None:
         """
         Create an `AsyncModbusTcpClient` object.
 
-        This class maps port number to client object. It does not assure the 
+        This class maps host number to client object. It does not assure the 
         equality of baundrate, time out, etc. \ 
         Please use `get_connection` to receive the created object.
         """
@@ -270,7 +270,7 @@ class ModbusTCPGatewayManager(GatewayManager):
             try:
                 setting = TCPConnectionSettings(
                     HOST=setting_dict["host"], 
-                    PORT=setting_dict["port"]
+                    PORT=int(setting_dict["port"])
                 )
                 await self.create_connection(settings=setting)
                 logging.info("Connect successfully.")

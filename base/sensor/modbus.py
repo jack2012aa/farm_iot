@@ -13,6 +13,7 @@ from base.gateway.modbus import ModbusRTUGatewayManager, ModbusTCPGatewayManager
 from general import type_check
 
 __all__ = [
+    "ModbusRegister", 
     "ModbusRTUBasedSensor", 
     "ModbusTCPBasedSensor"
 ]
@@ -96,15 +97,17 @@ class ModbusRTUBasedSensor(Sensor, ABC):
     async def __read_holding_registers(self, register, lock):
         """Help create a locked coroutine."""
         async with lock:
-            return await self._CLIENT.read_holding_registers(
+            value = await self._CLIENT.read_holding_registers(
                 address=register.address, slave=self._SLAVE
             )
+            return register.transform(value)
     async def __read_input_registers(self, register, lock):
         """Help create a locked coroutine."""
         async with lock:
-            return await self._CLIENT.read_input_registers(
+            value = await self._CLIENT.read_input_registers(
                 address=register.address, slave=self._SLAVE
             )
+            return register.transform(value)
 
     async def read_and_process(self) -> DataFrame | None:
         """Read a batch of data from registers, then export and process them.

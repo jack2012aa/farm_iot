@@ -5,12 +5,13 @@ import logging
 from abc import ABC
 
 from pymodbus.client.serial import AsyncModbusSerialClient
+from pymodbus.client.tcp import AsyncModbusTcpClient
 
 from general import type_check
 from base.manage import Report
 from base.sensor import Sensor, SensorManager
-from base.sensor.modbus import ModbusRTUBasedSensor
-from base.gateway.modbus import ModbusRTUGatewayManager
+from base.sensor.modbus import ModbusRTUBasedSensor, ModbusRegister, ModbusTCPBasedSensor
+from base.gateway.modbus import ModbusRTUGatewayManager, ModbusTCPGatewayManager
 from base.export import DataExporter
 from base.export.common_exporters import ExporterFactory
 from base.pipeline.time_series_filters import PipelineFactory
@@ -72,7 +73,51 @@ class FeedScaleRTUSensor(ModbusRTUBasedSensor, FeedScale):
         self.initialize_data()
 
     def initialize_registers(self) -> None:
-        reg = FeedScaleRTUSensor.ModbusRegister(
+        reg = ModbusRegister(
+            address=0, transform=calculate_weight_from_register, field_name=f"{self.NAME} Weight", function_code=3
+        )
+        self._registers.append(reg)
+
+
+class FeedScaleTCPSensor(ModbusTCPBasedSensor, FeedScale):
+    """ Read data from a TCP slave through a modbus tcp gateway. """
+
+    def __init__(
+            self,
+            length: int, 
+            duration: float, 
+            waiting_time: float, 
+            name: str,
+            client: AsyncModbusTcpClient,
+            slave: int,
+            belonging: tuple[str] = None
+    ) -> None:
+        """Read scale data from a RTU slave. 
+
+        :param length: number of data read in one call of `read()`.
+        :param duration: the duration between two `read_register()` in `read()`.
+        :param waiting_time: the waiting time between two `read()`.
+        :param name: the name of the scale.
+        :param client: a connection to modbus gateway. Please use `GatewayManager` to receive the connection.
+        :param slave: port number in modbus.
+        :param belonging: the belonging of this sensor, who are in charge of it.
+        """
+
+        type_check(client, "client", AsyncModbusTcpClient)
+        super().__init__(
+            length, 
+            duration, 
+            name, 
+            waiting_time, 
+            client, 
+            slave, 
+            belonging
+        )
+        self.initialize_registers()
+        self.initialize_data()
+
+    def initialize_registers(self) -> None:
+        reg = ModbusRegister(
             address=0, transform=calculate_weight_from_register, field_name=f"{self.NAME} Weight", function_code=3
         )
         self._registers.append(reg)
@@ -156,6 +201,8 @@ class FeedScaleManager(SensorManager):
                 match connection_type:
                     case "RTU":
                         scale = self.__create_RTU_scale(scale_name, settings)
+                    case "TCP":
+                        scale = self.__create_TCP_scale(scale_name, settings)
                     case _:
                         logging.error(f"Not defined connection type {connection_type} for scale \"{scale_name}\".")
                         print(f"Not defined connection type {connection_type} for scale \"{scale_name}\".")
@@ -215,7 +262,32 @@ class FeedScaleManager(SensorManager):
             raise ConnectionError
         
         return FeedScaleRTUSensor(
-            length, duration, waiting_time, name, client, slave
+            length, duration, waiting_time, name, client, slave, belonging
+        )
+    
+    def __create_TCP_scale(self, name: str, settings: dict) -> FeedScaleTCPSensor:
+        """Create a tcp scale using settings."""
+        
+        length = settings["length"]
+        duration = settings["duration"]
+        waiting_time = settings["waiting_time"]
+        slave = settings["connection settings"]["slave"]
+        belonging = settings.get("belonging")
+        if belonging is not None:
+            belonging = tuple(belonging)
+        
+        #Get gateway connection.
+        gateway_manager = ModbusRTUGatewayManager()
+        host = settings["connection settings"]["host"]
+        client = gateway_manager.get_connection(host)
+        #Client should be connected before used.
+        if client is None or not client.is_active():
+            logging.error(f"TCP gateway at {host} is not connected.")
+            print(f"TCP gateway at {host} is not connected.")
+            raise ConnectionError
+        
+        return FeedScaleTCPSensor(
+            length, duration, waiting_time, name, client, slave, belonging
         )
         
     async def __create_reading_loop(self, scale: FeedScale):
