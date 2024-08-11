@@ -15,6 +15,7 @@ from base.gateway.modbus import ModbusRTUGatewayManager, ModbusTCPGatewayManager
 from base.export import DataExporter
 from base.export.common_exporters import ExporterFactory
 from base.pipeline.time_series_filters import PipelineFactory
+from auto_feeder_gate_manager import BatchConsumptionFilterBySensor
 
 
 __all__ = [
@@ -192,6 +193,8 @@ class FeedScaleManager(SensorManager):
             configs = json.load(file)
         exporter_factory = ExporterFactory()
         pipeline_factory = PipelineFactory()
+        pipeline_factory.add_filter(
+            "BatchConsumptionFilterBySensor", BatchConsumptionFilterBySensor)
         
         for scale_name, settings in configs.items():
             logging.info(f"Connecting to scale \"{scale_name}\"")

@@ -26,7 +26,6 @@ from general import type_check
 from base.manage import Manager
 from base.pipeline import Filter, Pipeline
 from base.export.common_exporters import ExporterFactory
-from auto_feeder_gate_manager import BatchConsumptionFilterBySensor
 
 
 class BatchStdevFilter(Filter):
@@ -647,7 +646,19 @@ class PipelineFactory():
     """A factory class to build pipeline using dictionary."""
 
     def __init__(self) -> None:
-        pass
+        self.__additional_classes = {}
+
+    def add_filter(self, name: str, constructor: type):
+        """Add a new filter to the pipeline factory to avoid import errors.
+        The filter must accept **kwargs.
+
+        :param name: name of the class.
+        :param constructor: constructor of the class.
+        """
+
+        type_check(name, "name", str)
+        type_check(constructor, "constructor", type)
+        self.__additional_classes[name] = constructor
 
     def create(self, settings: list, manager: Manager = None) -> Pipeline:
         """Create a pipeline using the settings. 
@@ -684,13 +695,13 @@ class PipelineFactory():
                         filter = BatchAverageFilter()
                     case "MovingAverageFilter":
                         filter = MovingAverageFilter(filter_setting["max_length"])
-                    case "BatchConsumptionFilterBySensor":
-                        filter = BatchConsumptionFilterBySensor(filter_setting["gate_names"])
-                    case _:
-                        msg = f"Filter type {filter_setting["type"]} does not exist."
-                        print(msg)
-                        logging.error(msg)
-                        raise ValueError(msg)
+                    case other:
+                        if other not in self.__additional_classes:
+                            msg = f"Filter type {other} does not exist."
+                            print(msg)
+                            logging.error(msg)
+                            raise ValueError(msg)
+                        filter = self.__additional_classes[other](filter_setting)
             #Required specific setting not found.
             except KeyError as ex:
                 print(f"Filter type {filter_setting["type"]} misses setting \"{ex.args[0]}\"")

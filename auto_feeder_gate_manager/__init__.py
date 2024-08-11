@@ -276,12 +276,13 @@ class AutoFeederGateManager(SensorManager):
 
 class BatchConsumptionFilterBySensor(Filter):
 
-    def __init__(self, gate_names: list[str]) -> None:
+    def __init__(self, gate_names: list[str], **kwargs) -> None:
         """ Use auto gate sensor to correct remain feed and calculate feed 
         consumption between batches. 
 
         :param gate_names: names of auto gate sensors, which are registered \
             in AutoFeederGateManager.
+        :param kwargs: used to obtain extra arguments from PipelineFactory.
         :raises: TypeError, KeyError.
         """
         # Type check.
