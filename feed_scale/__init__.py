@@ -277,7 +277,7 @@ class FeedScaleManager(SensorManager):
             belonging = tuple(belonging)
         
         #Get gateway connection.
-        gateway_manager = ModbusRTUGatewayManager()
+        gateway_manager = ModbusTCPGatewayManager()
         host = settings["connection settings"]["host"]
         client = gateway_manager.get_connection(host)
         #Client should be connected before used.
