@@ -1,10 +1,12 @@
 """Define abstract sensor classes that read data from modbus."""
+
 import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 
 from pandas import DataFrame
+from pymodbus.pdu import ExceptionResponse
 from pymodbus.client import ModbusBaseClient
 
 from base.sensor import Sensor
@@ -12,21 +14,17 @@ from base.manage import Report
 from base.gateway.modbus import ModbusRTUGatewayManager, ModbusTCPGatewayManager
 from general import type_check
 
-__all__ = [
-    "ModbusRegister", 
-    "ModbusRTUBasedSensor", 
-    "ModbusTCPBasedSensor"
-]
+__all__ = ["ModbusRegister", "ModbusRTUBasedSensor", "ModbusTCPBasedSensor"]
 
 
 @dataclass
 class ModbusRegister:
-    """ A dataclass of how to read a type of data using modbus. 
+    """A dataclass of how to read a type of data using modbus.
 
     :param address: the address of target modbus register.
     :param transform: a function transforming read integer to correct value.
     :param field_name: name of target type.
-    :param function_code: function code used to read modbus. Usually 3 or 4.        
+    :param function_code: function code used to read modbus. Usually 3 or 4.
     """
 
     address: int
@@ -36,7 +34,7 @@ class ModbusRegister:
 
 
 class ModbusRTUBasedSensor(Sensor, ABC):
-    """ An abstract class for reading data from modbus rtu.
+    """An abstract class for reading data from modbus rtu.
 
     A period of read look like this:
     while True:
@@ -46,16 +44,16 @@ class ModbusRTUBasedSensor(Sensor, ABC):
     """
 
     def __init__(
-            self,
-            length: int,
-            duration: float,
-            name: str, 
-            waiting_time: float,
-            client: ModbusBaseClient,
-            slave: int,
-            belonging: tuple[str] = tuple()
+        self,
+        length: int,
+        duration: float,
+        name: str,
+        waiting_time: float,
+        client: ModbusBaseClient,
+        slave: int,
+        belonging: tuple[str] = tuple(),
     ) -> None:
-        """ An abstract class for reading data from modbus rtu.
+        """An abstract class for reading data from modbus rtu.
 
         :param length: number of data read in one call of `read()`.
         :param duration: the duration between two `read_register()` in `read()`.
@@ -75,7 +73,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
         self._CLIENT = client
         self._SLAVE = slave
         self._registers: list[ModbusRegister] = []
-        self._data: dict[str, list] = {"Timestamp":[]}
+        self._data: dict[str, list] = {"Timestamp": []}
         super().__init__(length, name, waiting_time, belonging)
 
     @abstractmethod
@@ -101,6 +99,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
                 address=register.address, slave=self._SLAVE
             )
             return register.transform(value)
+
     async def __read_input_registers(self, register, lock):
         """Help create a locked coroutine."""
         async with lock:
@@ -112,8 +111,8 @@ class ModbusRTUBasedSensor(Sensor, ABC):
     async def read_and_process(self) -> DataFrame | None:
         """Read a batch of data from registers, then export and process them.
 
-        Data from different registers will be thrown into pipelines. 
-        Please override this function to specify pipeline; or, create a new 
+        Data from different registers will be thrown into pipelines.
+        Please override this function to specify pipeline; or, create a new
         `Sensor` class for different data.
         :raises: ModbusException.
         :return: read data with a timestamp. None if the sensor is down.
@@ -125,7 +124,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
         # Read a batch of data.
         for i in range(self._LENGTH_OF_A_BATCH):
 
-            # Because RTU clients are not thread safe, create a async lock 
+            # Because RTU clients are not thread safe, create a async lock
             # here to manage the port access.
             manager = ModbusRTUGatewayManager()
             lock = manager.get_lock(self._CLIENT.comm_params.host)
@@ -138,7 +137,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
                     elif register.function_code == 4:
                         # Set timeout in Client to avoid bounding.
                         result = await self.__read_input_registers(register, lock)
-                    else: # Ignore incorrect value.
+                    else:  # Ignore incorrect value.
                         pass
                 except Exception as ex:
                     await self.notify_manager(Report(sign=self, content=ex))
@@ -151,20 +150,17 @@ class ModbusRTUBasedSensor(Sensor, ABC):
                 self._data[key].append(value)
 
             self._data["Timestamp"].append(datetime.now())
-            # Wait for next reading.   
+            # Wait for next reading.
             await asyncio.sleep(self._DURATION)
 
         batch = DataFrame(self._data)
         # Remember to handle exceptions when notifying.
-        await asyncio.gather(
-            self.notify_exporters(batch),
-            self.notify_pipelines(batch)
-        )
+        await asyncio.gather(self.notify_exporters(batch), self.notify_pipelines(batch))
         return batch
-    
+
     async def is_alive(self) -> bool:
         """Check whether the sensor is alive by reading a register."""
-        
+
         register = self._registers[0]
         lock = ModbusRTUGatewayManager().get_lock(self._CLIENT.comm_params.host)
         if register.function_code == 3:
@@ -182,7 +178,7 @@ class ModbusRTUBasedSensor(Sensor, ABC):
 
 
 class ModbusTCPBasedSensor(Sensor, ABC):
-    """ An abstract class for reading data from modbus tcp.
+    """An abstract class for reading data from modbus tcp.
 
     A period of read look like this:
     while True:
@@ -192,16 +188,16 @@ class ModbusTCPBasedSensor(Sensor, ABC):
     """
 
     def __init__(
-            self,
-            length: int,
-            duration: float,
-            name: str, 
-            waiting_time: float,
-            client: ModbusBaseClient,
-            slave: int,
-            belonging: tuple[str] = tuple()
+        self,
+        length: int,
+        duration: float,
+        name: str,
+        waiting_time: float,
+        client: ModbusBaseClient,
+        slave: int,
+        belonging: tuple[str] = tuple(),
     ) -> None:
-        """ An abstract class for reading data from modbus rtu.
+        """An abstract class for reading data from modbus rtu.
 
         :param length: number of data read in one call of `read()`.
         :param duration: the duration between two `read_register()` in `read()`.
@@ -221,7 +217,8 @@ class ModbusTCPBasedSensor(Sensor, ABC):
         self._CLIENT = client
         self._SLAVE = slave
         self._registers: list[ModbusRegister] = []
-        self._data: dict[str, list] = {"Timestamp":[]}
+        self._data: dict[str, list] = {"Timestamp": []}
+        self._lock = ModbusTCPGatewayManager().get_lock(self._CLIENT.comm_params.host)
         super().__init__(length, name, waiting_time, belonging)
 
     @abstractmethod
@@ -241,23 +238,51 @@ class ModbusTCPBasedSensor(Sensor, ABC):
             self._data[key].clear()
 
     async def __read_holding_registers(self, register, lock):
-        """Help create a locked coroutine."""
-        async with lock:
-            return await self._CLIENT.read_holding_registers(
-                address=register.address, slave=self._SLAVE
-            )
+        """Read holding registers until success.
+
+        Args:
+            register (_type_): Register to be read.
+            lock (_type_): wasted.
+
+        Returns:
+            _type_: modbus response.
+        """
+
+        async with self._lock:
+            value = None
+            # Fast calling may lead to failure. Read until get a response.
+            while value is None or isinstance(value, ExceptionResponse):
+                value = await self._CLIENT.read_holding_registers(
+                    address=register.address, slave=self._SLAVE
+                )
+        return value
+
     async def __read_input_registers(self, register, lock):
-        """Help create a locked coroutine."""
-        async with lock:
-            return await self._CLIENT.read_input_registers(
-                address=register.address, slave=self._SLAVE
-            )
+        """Read input registers until success.
+
+        Args:
+            register (_type_): Register to be read.
+            lock (_type_): wasted.
+
+        Returns:
+            _type_: modbus response.
+        """
+
+        async with self._lock:
+            value = None
+            # Fast calling may lead to failure. Read until get a response.
+            while value is None or isinstance(value, ExceptionResponse):
+                value = await self._CLIENT.read_input_registers(
+                    address=register.address, slave=self._SLAVE
+                )
+        return value
+
 
     async def read_and_process(self) -> DataFrame | None:
         """Read a batch of data from registers, then export and process them.
 
-        Data from different registers will be thrown into pipelines. 
-        Please override this function to specify pipeline; or, create a new 
+        Data from different registers will be thrown into pipelines.
+        Please override this function to specify pipeline; or, create a new
         `Sensor` class for different data.
         :raises: ModbusException.
         :return: read data with a timestamp. None if the sensor is down.
@@ -269,25 +294,18 @@ class ModbusTCPBasedSensor(Sensor, ABC):
         # Read a batch of data.
         for i in range(self._LENGTH_OF_A_BATCH):
 
-            # Because RTU clients are not thread safe, create a async lock 
+            # Because RTU clients are not thread safe, create a async lock
             # here to manage the port access.
-            manager = ModbusTCPGatewayManager()
-            lock = manager.get_lock(self._CLIENT.comm_params.host)
             for register in self._registers:
 
-                try:
-                    if register.function_code == 3:
-                        # Set timeout in Client to avoid bounding.
-                        result = await self.__read_holding_registers(register, lock)
-                    elif register.function_code == 4:
-                        # Set timeout in Client to avoid bounding.
-                        result = await self.__read_input_registers(register, lock)
-                    else: # Ignore incorrect value.
-                        pass
-                except Exception as ex:
-                    await self.notify_manager(Report(sign=self, content=ex))
-                    return None
+                if register.function_code == 3:
+                    # Set timeout in Client to avoid bounding.
+                    result = await self.__read_holding_registers(register, None)
+                elif register.function_code == 4:
+                    # Set timeout in Client to avoid bounding.
+                    result = await self.__read_input_registers(register, None)
                 if isinstance(result, BaseException):
+                    print(f"{self._SLAVE} fails.")
                     await self.notify_manager(Report(sign=self, content=result))
                     continue
                 key = register.field_name
@@ -295,31 +313,15 @@ class ModbusTCPBasedSensor(Sensor, ABC):
                 self._data[key].append(value)
 
             self._data["Timestamp"].append(datetime.now())
-            # Wait for next reading.   
+            # Wait for next reading.
             await asyncio.sleep(self._DURATION)
 
         batch = DataFrame(self._data)
         # Remember to handle exceptions when notifying.
-        await asyncio.gather(
-            self.notify_exporters(batch),
-            self.notify_pipelines(batch)
-        )
+        await asyncio.gather(self.notify_exporters(batch), self.notify_pipelines(batch))
         return batch
-    
+
     async def is_alive(self) -> bool:
         """Check whether the sensor is alive by reading a register."""
-        
-        register = self._registers[0]
-        lock = ModbusTCPGatewayManager().get_lock(self._CLIENT.comm_params.host)
-        if register.function_code == 3:
-            try:
-                await self.__read_holding_registers(register, lock)
-                return True
-            except:
-                return False
-        elif register.function_code == 4:
-            try:
-                await self.__read_input_registers(register, lock)
-                return True
-            except:
-                False
+
+        return True

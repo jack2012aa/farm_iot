@@ -5,6 +5,7 @@ During developing programs to read data from scales, air condition sensors, etc,
 # Environment
 This project is tested in Windows 11. \
 com0com and ICDT Modbus RTU Slave are used to mimic RTU.
+Please use Python 3.12.1
 
 # User Guide
 1. Download `app.exe`.
