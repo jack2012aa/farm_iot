@@ -1,0 +1,6 @@
+test.py
+app.exe
+venv/**
+**__pycache__**
+scale_env/**
+**.DS_Store
